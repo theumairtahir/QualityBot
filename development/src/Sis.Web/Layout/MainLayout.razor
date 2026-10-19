@@ -1,3 +1,64 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
 
-@Body
+<SidebarLayout SidebarWidth="w-72" MobileTitle="@PageTitle" OffWhitePageBackground="true">
+    <Sidebar>
+        <div class="flex h-16 shrink-0 items-center gap-x-3">
+            <div class="bg-primary-600 grid size-8 place-items-center rounded-md text-white">
+                <Icon Name="academic-cap" Size="size-5" />
+            </div>
+            <div class="flex flex-col">
+                <span class="text-dark-900 text-sm font-semibold dark:text-white">Student Information System</span>
+                <span class="text-dark-500 text-xs">Demo campus</span>
+            </div>
+        </div>
+
+        <NavList AriaLabel="Main">
+            @foreach (var section in AppMenu.Sections)
+            {
+                <NavSection Title="@section.Title">
+                    @foreach (var item in section.Items)
+                    {
+                        <NavItem Href="@item.Href" Label="@item.Label">
+                            <Icon><Icon Name="@item.IconName" /></Icon>
+                        </NavItem>
+                    }
+                </NavSection>
+            }
+        </NavList>
+    </Sidebar>
+
+    <Header>
+        @* Below lg the mobile top bar already names the page; showing it here too would repeat it. *@
+        <span data-testid="page-title" class="text-dark-900 hidden truncate text-sm font-semibold lg:block dark:text-white">@PageTitle</span>
+        <div class="ml-auto flex shrink-0 items-center gap-x-4">
+            <ThemeSwitcher />
+            <UserMenu />
+        </div>
+    </Header>
+
+    <ChildContent>
+        <ErrorBoundary @ref="_errorBoundary">
+            <ChildContent>
+                @Body
+            </ChildContent>
+            <ErrorContent>
+                <Alert Color="ThemeColor.Danger" Title="Something went wrong">
+                    This page failed to render. Pick another page from the menu, or reload.
+                </Alert>
+            </ErrorContent>
+        </ErrorBoundary>
+    </ChildContent>
+</SidebarLayout>
+
+<ToastHost Position="ToastPosition.TopRight" />
+
+@code {
+    private ErrorBoundary? _errorBoundary;
+
+    private string PageTitle =>
+        AppMenu.FindByPath(Navigation.ToBaseRelativePath(Navigation.Uri))?.Label ?? "Page not found";
+
+    // A new page arrives as a new Body: clear any error the previous page left behind.
+    protected override void OnParametersSet() => _errorBoundary?.Recover();
+}
