@@ -22,7 +22,7 @@ the **app shell** (sidebar menu + header). No business entities, no auth.
 ## Decisions
 
 | Topic | Decision |
-|---|---|
+| --- | --- |
 | Backend organisation | **Vertical slice** in a single `Sis.Api` project — `Features/<Feature>/` files hold endpoint + handler + data access. No MediatR. |
 | Client hosting | **Separate containers** — WASM served by nginx, API in its own container, CORS between them. |
 | Shell | **`SidebarLayout` + `Header` slot** from TailwindUi.Blazor. |
@@ -31,7 +31,7 @@ the **app shell** (sidebar menu + header). No business entities, no auth.
 
 ## Solution layout
 
-```
+```text
 development/
   Sis.slnx
   Directory.Build.props        net10.0, Nullable, ImplicitUsings, TreatWarningsAsErrors
@@ -75,7 +75,9 @@ development/
   convention, connection string `ConnectionStrings:Sis`. When
   `Database:ApplyMigrationsOnStartup` is `true` (Development + Docker), `MigrateAsync()` runs at
   startup. The first migration arrives with the first entity in a later step.
-- **Health:** `/health` with a DbContext check against Postgres; used by Docker.
+- **Health:** `/health` with a DbContext check against Postgres, for container/orchestrator
+  probes and manual checks. (The `aspnet` runtime image ships no `curl`, so Compose does not
+  health-check the API; `db` is the only service with a Compose healthcheck.)
 - **Errors:** `AddProblemDetails()` + exception handler → RFC 7807 responses.
 - **CORS:** allowed origins from `Cors:AllowedOrigins` (array).
 - **OpenAPI:** built-in `MapOpenApi()` in Development only.
@@ -114,7 +116,7 @@ outside that org, so:
 ## Docker
 
 | Service | Image | Host port | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `db` | `postgres:18` | 5432 | named volume, `pg_isready` healthcheck |
 | `api` | multi-stage → `mcr.microsoft.com/dotnet/aspnet:10.0` | 8081 | `depends_on: db (healthy)`; env connection string, CORS origin `http://localhost:8080`, migrations on |
 | `web` | multi-stage → `nginxinc/nginx-unprivileged:alpine` | 8080 | SPA fallback, `.wasm` MIME, gzip, no-cache for `index.html` / `appsettings.json`; entrypoint writes `appsettings.json` from `API_BASE_URL` |
