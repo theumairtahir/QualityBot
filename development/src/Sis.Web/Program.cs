@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Sis.Web;
+using Sis.Web.Services;
 using TailwindUi.Blazor.Extensions;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -15,6 +16,7 @@ if (!apiBaseUrl.EndsWith('/'))
 }
 
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
+builder.Services.AddScoped<SystemInfoClient>();
 builder.Services.AddTailwindUi();
 
 await builder.Build().RunAsync();
