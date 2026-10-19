@@ -1,0 +1,21 @@
+# Playwright MCP output (screenshots, snapshots, console logs)
+.playwright-mcp/
+
+# Playwright test artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Screenshots / images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+
+# Videos and traces
+*.webm
+*.mp4
+trace.zip

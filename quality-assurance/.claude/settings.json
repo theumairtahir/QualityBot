@@ -1,0 +1,21 @@
+{
+  "extraKnownMarketplaces": {
+    "quality-assurance": {
+      "source": {
+        "source": "directory",
+        "path": "."
+      }
+    }
+  },
+  "enabledPlugins": {
+    "test-strategy@quality-assurance": true,
+    "functional-testing@quality-assurance": true,
+    "automation@quality-assurance": true,
+    "performance-testing@quality-assurance": true,
+    "api-testing@quality-assurance": true,
+    "quality-metrics@quality-assurance": true,
+    "accessibility-testing@quality-assurance": true,
+    "qa-toolkit@quality-assurance": true,
+    "playwright-mcp@quality-assurance": true
+  }
+}
