@@ -1,0 +1,4 @@
+{
+  // The solution lives under development/, not at the repo root.
+  "dotnet.defaultSolution": "development/Sis.slnx"
+}

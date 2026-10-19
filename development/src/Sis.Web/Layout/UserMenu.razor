@@ -1,0 +1,29 @@
+@inject IToastService Toasts
+
+<Dropdown Anchor="DropdownAnchor.BottomEnd">
+    <Trigger>
+        <span class="inline-flex items-center gap-x-2">
+            <Avatar Initials="Demo Admin" Size="Size.Small" InitialsBackground="ThemeColor.Primary" />
+            <span class="text-dark-900 hidden text-sm font-semibold sm:inline dark:text-white">Demo Admin</span>
+        </span>
+    </Trigger>
+    <Header>
+        <p class="text-dark-500 text-sm">Signed in as</p>
+        <p class="text-dark-900 truncate text-sm font-medium dark:text-white">admin@demo.school</p>
+    </Header>
+    <ChildContent>
+        <DropdownSection>
+            <DropdownItem Text="Your profile" OnClick="ShowNotYetAvailable" />
+            <DropdownItem Text="Settings" Href="settings" />
+        </DropdownSection>
+        <DropdownSection>
+            <DropdownItem Text="Sign out" OnClick="ShowNotYetAvailable" />
+        </DropdownSection>
+    </ChildContent>
+</Dropdown>
+
+@code {
+    // Placeholder until authentication is built.
+    private void ShowNotYetAvailable() =>
+        Toasts.ShowInfo("Not available yet", "Accounts arrive with authentication in a later step.");
+}

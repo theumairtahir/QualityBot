@@ -1,0 +1,5 @@
+# Copied from the TailwindUi.Blazor package at build time (Tailwind Plus licensed): never commit.
+src/Sis.Web/wwwroot/lib/tailwindui/
+
+# Test results from `dotnet test --results-directory TestResults`
+TestResults/

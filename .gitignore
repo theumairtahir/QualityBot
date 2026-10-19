@@ -426,3 +426,8 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+
+docs/superpowers/
+docs/superpowers/plans/2026-10-19-sis-app-shell.md
+docs/superpowers/specs/2026-10-19-sis-app-shell-design.md

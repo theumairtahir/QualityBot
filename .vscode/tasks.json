@@ -1,0 +1,109 @@
+{
+  "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}/development"
+  },
+  "tasks": [
+    {
+      "label": "sis: build",
+      "detail": "Build the whole SIS solution",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "Sis.slnx", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
+      "problemMatcher": "$msCompile",
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "sis: build api",
+      "detail": "Build Sis.Api and what it references",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "src/Sis.Api/Sis.Api.csproj", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "sis: test",
+      "detail": "Run every unit test",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["test", "Sis.slnx", "/property:GenerateFullPaths=true"],
+      "problemMatcher": "$msCompile",
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "sis: db up",
+      "detail": "Start Postgres (localhost:5433) and wait until it is healthy",
+      "type": "shell",
+      "command": "docker compose up -d --wait db",
+      "problemMatcher": []
+    },
+    {
+      "label": "sis: db down",
+      "detail": "Stop the Compose stack (data volume is kept)",
+      "type": "shell",
+      "command": "docker compose down",
+      "problemMatcher": []
+    },
+    {
+      "label": "sis: prepare",
+      "detail": "Postgres up, then build the solution (used by the full-stack launch)",
+      "dependsOrder": "sequence",
+      "dependsOn": ["sis: db up", "sis: build"],
+      "problemMatcher": []
+    },
+    {
+      "label": "sis: prepare api",
+      "detail": "Postgres up, then build Sis.Api (used by the Sis.Api launch)",
+      "dependsOrder": "sequence",
+      "dependsOn": ["sis: db up", "sis: build api"],
+      "problemMatcher": []
+    },
+    {
+      "label": "sis: watch api",
+      "detail": "Run Sis.Api with hot reload (http://localhost:5081)",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["watch", "--project", "src/Sis.Api/Sis.Api.csproj", "--launch-profile", "http"],
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "dotnet-watch",
+        "pattern": { "regexp": "__never_matches__" },
+        "background": { "activeBegins": true, "beginsPattern": "dotnet watch", "endsPattern": "Now listening on|Application started" }
+      }
+    },
+    {
+      "label": "sis: watch web",
+      "detail": "Run Sis.Web with hot reload (http://localhost:5080)",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["watch", "--project", "src/Sis.Web/Sis.Web.csproj", "--launch-profile", "http"],
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "dotnet-watch",
+        "pattern": { "regexp": "__never_matches__" },
+        "background": { "activeBegins": true, "beginsPattern": "dotnet watch", "endsPattern": "Now listening on|Application started" }
+      }
+    },
+    {
+      "label": "sis: watch all",
+      "detail": "Postgres up, then API + Web with hot reload (no debugger)",
+      "dependsOrder": "sequence",
+      "dependsOn": ["sis: db up", "sis: build", "sis: watch api + web"],
+      "problemMatcher": []
+    },
+    {
+      "label": "sis: watch api + web",
+      "dependsOrder": "parallel",
+      "dependsOn": ["sis: watch api", "sis: watch web"],
+      "problemMatcher": [],
+      "hide": true
+    },
+    {
+      "label": "sis: docker up",
+      "detail": "Build and run the full Compose stack (web :8080, api :8081, db :5433)",
+      "type": "shell",
+      "command": "docker compose up --build -d",
+      "problemMatcher": []
+    }
+  ]
+}

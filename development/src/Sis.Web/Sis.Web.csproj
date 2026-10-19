@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
+    <!-- contentFiles excluded: the package's CSS is wired up by CopyTailwindUiCss below. -->
+    <PackageReference Include="TailwindUi.Blazor" ExcludeAssets="contentFiles" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sis.Contracts\Sis.Contracts.csproj" />
+  </ItemGroup>
+
+  <!-- TailwindUi.Blazor ships its compiled Tailwind bundle as a NuGet content file rather than a
+       static web asset, so it is not under _content/TailwindUi.Blazor/ and the dev server cannot
+       serve it. Copy it into a git-ignored wwwroot folder before static web assets are collected,
+       so dev, publish and Docker all serve the same file. Never commit the copy: the bundle is
+       Tailwind Plus licensed and this repository is public. -->
+  <PropertyGroup>
+    <TailwindUiCssSource>$(PkgTailwindUi_Blazor)\contentFiles\any\net10.0\wwwroot\css\tailwindui.css</TailwindUiCssSource>
+    <TailwindUiCssTarget>wwwroot\lib\tailwindui\tailwindui.css</TailwindUiCssTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="wwwroot\lib\tailwindui\**" />
+    <Content Include="$(TailwindUiCssTarget)" />
+  </ItemGroup>
+
+  <Target Name="CopyTailwindUiCss" BeforeTargets="BeforeBuild" Condition="'$(PkgTailwindUi_Blazor)' != ''">
+    <Copy SourceFiles="$(TailwindUiCssSource)" DestinationFiles="$(TailwindUiCssTarget)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

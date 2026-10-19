@@ -1,0 +1,47 @@
+{
+  // Start here: "SIS: DB + API + Web" brings up Postgres, builds once, then debugs both apps.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Sis.Api",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "sis: prepare api",
+      "program": "${workspaceFolder}/development/src/Sis.Api/bin/Debug/net10.0/Sis.Api.dll",
+      "cwd": "${workspaceFolder}/development/src/Sis.Api",
+      "launchSettingsProfile": "http",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Sis.Web",
+      "type": "blazorwasm",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/development/src/Sis.Web",
+      "url": "http://localhost:5080",
+      "browser": "edge"
+    },
+    {
+      // Sis.Api without its own pre-launch build: the compound below builds the whole
+      // solution first, so Sis.Web's `dotnet run` never races a second build.
+      "name": "Sis.Api (no build)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/development/src/Sis.Api/bin/Debug/net10.0/Sis.Api.dll",
+      "cwd": "${workspaceFolder}/development/src/Sis.Api",
+      "launchSettingsProfile": "http",
+      "console": "internalConsole",
+      "stopAtEntry": false,
+      "presentation": { "hidden": true }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "SIS: DB + API + Web",
+      "preLaunchTask": "sis: prepare",
+      "configurations": ["Sis.Api (no build)", "Sis.Web"],
+      "stopAll": true,
+      "presentation": { "group": "SIS", "order": 1 }
+    }
+  ]
+}
