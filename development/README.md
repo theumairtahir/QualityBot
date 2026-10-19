@@ -40,6 +40,16 @@ dotnet run --project src/Sis.Api   # http://localhost:5081
 dotnet run --project src/Sis.Web   # http://localhost:5080
 ```
 
+### In VS Code
+
+Open the repository root and install the recommended extensions when prompted.
+
+- **Run and Debug → `SIS: DB + API + Web`** (F5) starts Postgres, builds the solution, then
+  debugs the API and the Blazor client together (the client opens in Edge). Stopping one stops both.
+- `Sis.Api` or `Sis.Web` debugs one app on its own.
+- **Terminal → Run Task** offers `sis: watch all` (hot reload, no debugger), `sis: test`,
+  `sis: db up` / `sis: db down` and `sis: docker up` (the full Compose stack).
+
 ## Test
 
 ```bash
