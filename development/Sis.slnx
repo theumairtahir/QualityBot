@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Sis.Api/Sis.Api.csproj" />
     <Project Path="src/Sis.Contracts/Sis.Contracts.csproj" />
+    <Project Path="src/Sis.Web/Sis.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Sis.Api.Tests/Sis.Api.Tests.csproj" />
