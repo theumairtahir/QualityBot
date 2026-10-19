@@ -34,7 +34,7 @@ For each pull request, the workflow on the self-hosted runner:
 | Path | Purpose |
 | --- | --- |
 | [quality-assurance/](quality-assurance/) | Claude sub-project for the QA bot: 8 QA plugins (63 skills), the Playwright MCP plugin, and its own `.claude/settings.json`. Start Claude Code from this folder to load them. |
-| [development/](development/) | Reserved for the development-side sub-project. |
+| [development/](development/) | The sample app under test: a Student Information System (.NET 10 API, Blazor WebAssembly, PostgreSQL, Docker Compose). |
 | [docs/](docs/) | Design specs and implementation plans for the sample application under test. |
 
 ### The `quality-assurance` sub-project
