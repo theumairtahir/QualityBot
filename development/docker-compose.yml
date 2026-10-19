@@ -1,0 +1,58 @@
+name: sis
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: sis
+      POSTGRES_USER: sis
+      POSTGRES_PASSWORD: sis
+    ports:
+      # 5433 on the host so it can run beside another local Postgres on 5432.
+      - "5433:5432"
+    volumes:
+      # postgres 18+ keeps its data under a versioned subdirectory of /var/lib/postgresql.
+      - sis-db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sis -d sis"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Sis.Api/Dockerfile
+    environment:
+      ConnectionStrings__Sis: "Host=db;Port=5432;Database=sis;Username=sis;Password=sis"
+      Database__ApplyMigrationsOnStartup: "true"
+      Cors__AllowedOrigins__0: "http://localhost:8080"
+    ports:
+      - "8081:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: src/Sis.Web/Dockerfile
+      secrets:
+        - gh_packages_user
+        - gh_packages_token
+    environment:
+      # The browser calls the API directly, so this is the host-facing URL, not http://api:8080.
+      API_BASE_URL: "http://localhost:8081/"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api
+
+secrets:
+  gh_packages_user:
+    environment: GH_PACKAGES_USER
+  gh_packages_token:
+    environment: GH_PACKAGES_TOKEN
+
+volumes:
+  sis-db:
