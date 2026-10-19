@@ -1,0 +1,25 @@
+@page "/students"
+@page "/admissions"
+@page "/classes"
+@page "/courses"
+@page "/attendance"
+@page "/grades"
+@page "/staff"
+@page "/fees"
+@page "/reports"
+@page "/settings"
+@inject NavigationManager Navigation
+
+<PageTitle>@Title · SIS</PageTitle>
+
+<PageHeading Title="@Title" />
+
+<div class="mt-10">
+    <EmptyState Title="@($"{Title} is coming soon")">
+        This module hasn't been built yet. It will appear here in a later step.
+    </EmptyState>
+</div>
+
+@code {
+    private string Title => AppMenu.FindByPath(Navigation.ToBaseRelativePath(Navigation.Uri))?.Label ?? "Module";
+}

@@ -1,0 +1,51 @@
+@page "/"
+@using System.Text.Json
+@inject SystemInfoClient SystemInfo
+
+<PageTitle>Dashboard · SIS</PageTitle>
+
+<PageHeading Title="Dashboard" Description="Your campus at a glance. Widgets arrive as modules are built." />
+
+<div class="mt-8 max-w-md">
+    <Card>
+        <HeaderContent>
+            <h2 class="text-dark-900 text-base font-semibold dark:text-white">System status</h2>
+        </HeaderContent>
+        <ChildContent>
+            <div data-testid="api-status" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                @if (_info is not null)
+                {
+                    <Badge Dot Color="ThemeColor.Success" Text="Connected" />
+                    <span class="text-dark-500">v@(_info.Version) · @_info.Environment</span>
+                }
+                else if (_unreachable)
+                {
+                    <Badge Dot Color="ThemeColor.Danger" Text="API unreachable" />
+                    <span class="text-dark-500">Check that the API is running and allows this origin.</span>
+                }
+                else
+                {
+                    <span class="text-dark-500">Checking API…</span>
+                }
+            </div>
+        </ChildContent>
+    </Card>
+</div>
+
+@code {
+    private SystemInfoResponse? _info;
+    private bool _unreachable;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _info = await SystemInfo.GetAsync();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException
+                                       or NotSupportedException or InvalidOperationException)
+        {
+            _unreachable = true;
+        }
+    }
+}
