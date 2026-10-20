@@ -1,0 +1,28 @@
+{
+  "name": "qualitybot-qa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QA bot sub-project: Claude QA plugins, Playwright MCP and the Playwright regression suite.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "playwright test --pass-with-no-tests",
+    "test:regression": "playwright test tests/regression --pass-with-no-tests",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@playwright/mcp": "0.0.83",
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.5",
+    "typescript": "7.0.2"
+  },
+  "overrides": {
+    "@playwright/mcp": {
+      "playwright": "$@playwright/test",
+      "playwright-core": "$@playwright/test"
+    }
+  }
+}

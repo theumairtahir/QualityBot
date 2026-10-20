@@ -19,3 +19,6 @@ playwright/.cache/
 *.webm
 *.mp4
 trace.zip
+
+# Node
+node_modules/

@@ -78,10 +78,19 @@ To try the QA sub-project locally:
 
 ```bash
 cd quality-assurance
+npm ci                                  # Playwright, Playwright MCP, TypeScript
+npx playwright install --with-deps chromium
 claude
 ```
 
 Then run `/plugin` to confirm the plugins and the Playwright MCP server are loaded.
+
+The regression suite lives in `quality-assurance/tests/regression` and runs against `BASE_URL` (default `http://localhost:8080`, the `web` container):
+
+```bash
+BASE_URL=http://localhost:8080 npm run test:regression
+npm run report                          # open the HTML report
+```
 
 ## Security notes
 
