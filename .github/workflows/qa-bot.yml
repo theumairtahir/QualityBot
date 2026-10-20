@@ -58,9 +58,15 @@ jobs:
 
       - name: Check secrets
         run: |
+          export PATH="$HOME/.local/bin:$PATH"
           fail=0
+          # Claude auth: an explicit secret wins; otherwise use the login stored on this runner for its own user.
           if [ -z "$ANTHROPIC_API_KEY$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "::error::Set repository secret ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN."; fail=1
+            if claude auth status 2>/dev/null | grep -q '"loggedIn": true'; then
+              echo "Using the Claude login stored on this runner ($(whoami))."
+            else
+              echo "::error::Claude is not logged in for '$(whoami)' on this runner. Run 'claude' as that user and log in, or set repository secret ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN."; fail=1
+            fi
           fi
           if [ -z "$GH_PACKAGES_TOKEN" ]; then
             echo "::error::Set repository secret GH_PACKAGES_TOKEN (PAT with read:packages) so the app can build."; fail=1
@@ -119,7 +125,9 @@ jobs:
         run: ./scripts/app-down.sh
 
       - name: Verdict
-        if: always()
+        # Skip when an earlier step already failed before the agent ran (e.g. missing secrets):
+        # the real error is above and a second "no verdict" error would only bury it.
+        if: ${{ always() && steps.claude.outcome != 'skipped' }}
         run: |
           if [ "${{ steps.sonar.outcome }}" = failure ]; then echo "::warning::SonarQube step failed; see sonar-scan.log in the artifact."; fi
           if [ "${{ steps.regression.outcome }}" = failure ]; then echo "::warning::Regression suite had failures; the QA summary explains which are bugs."; fi
