@@ -33,7 +33,8 @@ For each pull request, the workflow on the self-hosted runner:
 
 | Path | Purpose |
 | --- | --- |
-| [quality-assurance/](quality-assurance/) | Claude sub-project for the QA bot: 8 QA plugins (63 skills), the Playwright MCP plugin, and its own `.claude/settings.json`. Start Claude Code from this folder to load them. |
+| [.github/workflows/qa-bot.yml](.github/workflows/qa-bot.yml) | The pull-request workflow that runs the QA cycle on the self-hosted runner. |
+| [quality-assurance/](quality-assurance/) | Claude sub-project for the QA bot: [CLAUDE.md](quality-assurance/CLAUDE.md) (the agent's instructions), 8 QA plugins (63 skills), Playwright MCP, the SonarQube-in-Docker setup, the lifecycle/reporting scripts, seeds and the regression suite. Start Claude Code from this folder. |
 | [development/](development/) | The sample app under test: a Student Information System (.NET 10 API, Blazor WebAssembly, PostgreSQL, Docker Compose). |
 | [docs/](docs/) | Design specs and implementation plans for the sample application under test. |
 

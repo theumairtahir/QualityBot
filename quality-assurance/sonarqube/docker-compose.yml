@@ -1,0 +1,42 @@
+# SonarQube for one QA cycle. Started and destroyed by scripts/sonar.sh; nothing persists between runs.
+#
+#   sonarqube  Community Build on an in-container H2 database (fine for a throwaway analysis).
+#   scanner    .NET SDK + Java + dotnet-sonarscanner. Mounts the app read-only, copies it to /work,
+#              builds it there and uploads the analysis to the sonarqube service. Runs on demand:
+#                docker compose --profile scan run --rm scanner
+#
+# The host needs vm.max_map_count >= 524288 for SonarQube's Elasticsearch (scripts/provision-runner.sh).
+
+services:
+  sonarqube:
+    image: sonarqube:community
+    ports:
+      - "${SONAR_PORT:-9000}:9000"
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+      SONAR_TELEMETRY_ENABLE: "false"
+    stop_grace_period: 30s
+
+  scanner:
+    profiles: ["scan"]
+    build:
+      context: .
+      dockerfile: scanner.Dockerfile
+    depends_on:
+      - sonarqube
+    volumes:
+      - ${APP_DIR:-../../development}:/src:ro
+      - nuget-cache:/root/.nuget/packages
+    environment:
+      SONAR_HOST_URL: http://sonarqube:9000
+      SONAR_TOKEN: ${SONAR_TOKEN:?run through scripts/sonar.sh}
+      SONAR_PROJECT_KEY: ${SONAR_PROJECT_KEY:-qualitybot}
+      SONAR_PROJECT_NAME: ${SONAR_PROJECT_NAME:-QualityBot}
+      SONAR_BRANCH_LABEL: ${SONAR_BRANCH_LABEL:-local}
+      GH_PACKAGES_USER: ${GH_PACKAGES_USER:-}
+      GH_PACKAGES_TOKEN: ${GH_PACKAGES_TOKEN:-}
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+
+volumes:
+  nuget-cache:

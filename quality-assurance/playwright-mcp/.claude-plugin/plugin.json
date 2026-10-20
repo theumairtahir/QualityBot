@@ -1,8 +1,0 @@
-{
-  "name": "playwright-mcp",
-  "version": "1.0.0",
-  "description": "Playwright MCP server for browser automation and UI testing.",
-  "author": { "name": "Umair Tahir" },
-  "keywords": ["playwright", "mcp", "browser", "testing"],
-  "license": "MIT"
-}
