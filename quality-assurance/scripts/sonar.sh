@@ -24,7 +24,8 @@ up() {
   wait_for "$SONAR_URL/api/system/status" 300 '"UP"' || { sonar_compose logs --no-color sonarqube | tail -n 60 >&2; die "SonarQube did not start"; }
 
   # Fresh container: rotate the default admin password, then mint a token for the scanner.
-  local pw; pw=$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 24)
+  # Policy (SonarQube 2025+): 12+ chars with upper, lower, digit and special — the prefix guarantees it.
+  local pw; pw="Qa!9$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 20)"
   curl -fsS -u admin:admin -X POST "$SONAR_URL/api/users/change_password" \
     --data-urlencode login=admin --data-urlencode previousPassword=admin --data-urlencode "password=$pw" >/dev/null
   local token
