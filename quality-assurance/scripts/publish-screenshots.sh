@@ -38,7 +38,7 @@ mkdir -p "$tmp/$DEST"
 cp "${files[@]}" "$tmp/$DEST/"
 git -C "$tmp" add -Af .
 git -C "$tmp" -c user.name=QualityBot -c user.email=qualitybot@users.noreply.github.com \
-  commit -qm "QA screenshots for PR #$PR_NUMBER (run $GITHUB_RUN_ID)"
+  commit -qm "QA screenshots for PR #$PR_NUMBER (run $GITHUB_RUN_ID) [skip ci]"
 git -C "$tmp" push -q origin "HEAD:refs/heads/$BRANCH"
 
 : > "$OUT"

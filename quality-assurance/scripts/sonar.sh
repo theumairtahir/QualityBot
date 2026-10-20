@@ -77,14 +77,15 @@ issues() {
     page=$((page + 1))
   done
 
+  # Note for jq 1.6 (Ubuntu apt): "label" is a reserved word there, so the field is called "branch".
   jq -n \
-    --arg key "$SONAR_PROJECT_KEY" --arg url "$SONAR_URL" --arg label "$SONAR_BRANCH_LABEL" \
+    --arg key "$SONAR_PROJECT_KEY" --arg url "$SONAR_URL" --arg branch "$SONAR_BRANCH_LABEL" \
     --slurpfile issues "$tmp" \
     --argjson rules "$(jq '.rules // []' "$tmp.page")" \
     --argjson hotspots "$(api "hotspots/search?project=$SONAR_PROJECT_KEY&ps=500" | jq '.hotspots')" \
     --argjson measures "$(api "measures/component?component=$SONAR_PROJECT_KEY&metricKeys=bugs,vulnerabilities,code_smells,security_hotspots,duplicated_lines_density,ncloc,cognitive_complexity" | jq '[.component.measures[] | {(.metric): .value}] | add')" \
     '{
-       project: $key, label: $label, generated_at: (now | todate),
+       project: $key, branch: $branch, generated_at: (now | todate),
        note: "SonarQube ran in a throwaway container; the server URL will not be reachable later.",
        measures: $measures,
        issues: [$issues[] | {
@@ -97,11 +98,12 @@ issues() {
          component: (.component | sub("^[^:]*:"; "")), line, message
        }],
        rules: [$rules[] | {key, name, lang}]
-     }' > "$QA_OUT/sonar-issues.json"
+     }' > "$QA_OUT/sonar-issues.json.tmp"
+  mv "$QA_OUT/sonar-issues.json.tmp" "$QA_OUT/sonar-issues.json"
   rm -f "$tmp" "$tmp.page"
 
   jq -r '
-    "## SonarQube — \(.label)",
+    "## SonarQube — \(.branch)",
     "",
     "Lines: \(.measures.ncloc // "?") · Bugs: \(.measures.bugs // 0) · Vulnerabilities: \(.measures.vulnerabilities // 0) · Code smells: \(.measures.code_smells // 0) · Hotspots: \(.measures.security_hotspots // 0) · Duplication: \(.measures.duplicated_lines_density // 0)%",
     "",
@@ -109,7 +111,7 @@ issues() {
     (.issues | group_by(.severity) | map("| \(.[0].severity) | \(length) |") | .[]),
     "",
     "| Severity | Rule | File:line | Message |", "| --- | --- | --- | --- |",
-    (.issues | sort_by(.severity) | .[] | "| \(.severity) | `\(.rule)` | `\(.component):\(.line // "-")` | \(.message | gsub("\\|"; "\\\\|")) |")
+    (.issues | sort_by(.severity) | .[] | "| \(.severity) | `\(.rule)` | `\(.component):\(.line // "-")` | \(.message | gsub("\\|"; "\\|")) |")
   ' "$QA_OUT/sonar-issues.json" > "$QA_OUT/sonar-summary.md"
 
   log "$(jq '.issues|length' "$QA_OUT/sonar-issues.json") issues, $(jq '.hotspots|length' "$QA_OUT/sonar-issues.json") hotspots → $QA_OUT/sonar-issues.json"
@@ -129,7 +131,15 @@ case "${1:-}" in
   all)
     trap down EXIT
     up
-    if scan; then issues; else rc=$?; [ $rc -eq 3 ] && exit 0 || exit $rc; fi
+    if scan; then
+      if ! issues; then
+        # Leave the agent a structured error rather than a missing/empty file.
+        jq -n --arg key "$SONAR_PROJECT_KEY" --arg branch "$SONAR_BRANCH_LABEL" \
+          '{project: $key, branch: $branch, error: "issue export failed; see the SonarQube step log", issues: [], hotspots: []}' \
+          > "$QA_OUT/sonar-issues.json"
+        exit 1
+      fi
+    else rc=$?; [ $rc -eq 3 ] && exit 0 || exit $rc; fi
     ;;
   *) sed -n '2,9p' "$0" >&2; exit 2 ;;
 esac

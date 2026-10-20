@@ -22,8 +22,10 @@ if git diff --cached --quiet; then
   exit 0
 fi
 
+# "[skip ci]" stops this push from starting another QA cycle (and Development CI) on the PR.
+# The workflow's guard job is the second line of defence, keyed on this author e-mail.
 git -c user.name=QualityBot -c user.email=qualitybot@users.noreply.github.com \
-  commit -q -m "$msg" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
+  commit -q -m "$msg [skip ci]" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
 log "committed: $(git log -1 --format=%h) $msg"
 
 # The branch may have moved while the cycle ran; rebase once before giving up.
@@ -33,4 +35,4 @@ if ! git push -q origin "HEAD:refs/heads/$PR_BRANCH" 2>/dev/null; then
   git -c user.name=QualityBot -c user.email=qualitybot@users.noreply.github.com rebase -q FETCH_HEAD
   git push -q origin "HEAD:refs/heads/$PR_BRANCH"
 fi
-log "pushed to $PR_BRANCH (a push with the workflow token does not trigger another QA run)"
+log "pushed to $PR_BRANCH ([skip ci] + the guard job keep this from starting another cycle)"

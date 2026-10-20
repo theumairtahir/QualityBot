@@ -19,9 +19,36 @@ permissions:
   issues: read           # linked issue with acceptance criteria
 
 jobs:
+  # The cycle pushes regression tests back to the PR branch. That push is tagged "[skip ci]", but as a
+  # second line of defence this job inspects the PR head commit and skips the cycle when it is the
+  # bot's own, so the workflow can never re-trigger itself.
+  guard:
+    name: Skip bot commits
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: [self-hosted, qa-bot]
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - id: check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          commit=$(gh api "repos/${{ github.repository }}/commits/$HEAD_SHA" --jq '{author: .commit.author.email, subject: (.commit.message | split("\n")[0])}')
+          author=$(jq -r .author <<<"$commit"); subject=$(jq -r .subject <<<"$commit")
+          echo "head: $HEAD_SHA by $author — $subject"
+          if [ "$author" = "qualitybot@users.noreply.github.com" ] || grep -qiE '\[(skip ci|ci skip|skip qa)\]' <<<"$subject"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::QA cycle skipped: the PR head is QualityBot's own commit (or is marked to skip)."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
   qa-cycle:
     name: QA cycle
-    if: ${{ !github.event.pull_request.draft }}
+    needs: guard
+    if: ${{ needs.guard.outputs.skip != 'true' }}
     runs-on: [self-hosted, qa-bot]
     timeout-minutes: 120
     defaults:

@@ -55,7 +55,12 @@ if result -e '.is_error == true' >/dev/null; then
   warn "Claude reported an error — see $QA_OUT/claude-stderr.log and the transcript"
   rc=1
 fi
-result -r '"turns: \(.num_turns // "?") · duration: \((.duration_ms // 0) / 1000 | floor)s · cost: $\(.total_cost_usd // 0)"' | tail -n 1 >&2 || true
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+  result -r '"turns: \(.num_turns // "?") · duration: \((.duration_ms // 0) / 1000 | floor)s · API cost: $\(.total_cost_usd // 0)"' | tail -n 1 >&2 || true
+else
+  # Subscription login: nothing is billed per run; total_cost_usd would only be an API-price estimate.
+  result -r '"turns: \(.num_turns // "?") · duration: \((.duration_ms // 0) / 1000 | floor)s · tokens out: \(.usage.output_tokens // 0), cache read: \(.usage.cache_read_input_tokens // 0) (subscription, not billed per run)"' | tail -n 1 >&2 || true
+fi
 
 [ -f "$QA_OUT/verdict.json" ] || warn "no .qa/verdict.json was written"
 exit "$rc"
