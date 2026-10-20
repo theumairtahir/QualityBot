@@ -13,6 +13,19 @@ need claude; need jq; need envsubst
 
 cd "$QA_ROOT"
 export PR_NUMBER PR_URL QA_WEB_URL QA_API_URL QA_RUN_URL
+
+# Headless Claude ignores .claude/settings.json (permissions, additionalDirectories) until the
+# workspace is trusted, and the trust dialog cannot be shown here. Trust is keyed by the git root.
+trust_workspace() {
+  local cfg="$HOME/.claude.json" tmp
+  [ -s "$cfg" ] || echo '{}' > "$cfg"
+  tmp=$(mktemp)
+  jq --arg root "$REPO_ROOT" --arg qa "$QA_ROOT" '
+      .projects[$root] = ((.projects[$root] // {}) + {hasTrustDialogAccepted: true})
+    | .projects[$qa]   = ((.projects[$qa]   // {}) + {hasTrustDialogAccepted: true})' "$cfg" > "$tmp" \
+    && mv "$tmp" "$cfg"
+}
+trust_workspace
 prompt=$(envsubst '$PR_NUMBER $PR_URL $QA_WEB_URL $QA_API_URL $QA_RUN_URL' < prompts/qa-cycle.md)
 
 args=(
@@ -27,21 +40,22 @@ log "starting QA cycle for PR #$PR_NUMBER (cwd $QA_ROOT)"
 set +e
 claude "${args[@]}" 2> "$QA_OUT/claude-stderr.log" \
   | tee "$QA_OUT/claude-transcript.jsonl" \
-  | jq -r --unbuffered '
-      select(.type == "assistant") | .message.content[]? |
+  | jq -R -r --unbuffered '
+      fromjson? | select(.type == "assistant") | .message.content[]? |
       if .type == "text" then "\n" + .text
       elif .type == "tool_use" then "→ " + .name + " " + ((.input | tostring) | .[0:160])
       else empty end'
 rc=${PIPESTATUS[0]}
 set -e
 
-jq -r 'select(.type == "result") | .result // empty' "$QA_OUT/claude-transcript.jsonl" > "$QA_OUT/claude-summary.md" || true
-if jq -e 'select(.type == "result") | .is_error == true' "$QA_OUT/claude-transcript.jsonl" >/dev/null 2>&1; then
+# The transcript may contain non-JSON warning lines from Claude; -R + fromjson? skips them.
+result() { jq -R "fromjson? | select(.type == \"result\") | $1" "$QA_OUT/claude-transcript.jsonl" 2>/dev/null; }
+result -r '.result // empty' > "$QA_OUT/claude-summary.md" || true
+if result -e '.is_error == true' >/dev/null; then
   warn "Claude reported an error — see $QA_OUT/claude-stderr.log and the transcript"
   rc=1
 fi
-jq -r 'select(.type == "result") | "turns: \(.num_turns // "?") · duration: \((.duration_ms // 0) / 1000 | floor)s · cost: $\(.total_cost_usd // 0)"' \
-  "$QA_OUT/claude-transcript.jsonl" 2>/dev/null | tail -n 1 >&2 || true
+result -r '"turns: \(.num_turns // "?") · duration: \((.duration_ms // 0) / 1000 | floor)s · cost: $\(.total_cost_usd // 0)"' | tail -n 1 >&2 || true
 
 [ -f "$QA_OUT/verdict.json" ] || warn "no .qa/verdict.json was written"
 exit "$rc"

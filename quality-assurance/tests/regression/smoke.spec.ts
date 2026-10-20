@@ -20,6 +20,7 @@ test.describe('app shell', { tag: '@critical' }, () => {
 
   test('unknown route shows the not-found page instead of a blank screen', async ({ page }) => {
     await page.goto('/this-route-does-not-exist');
-    await expect(page.getByText(/not found/i)).toBeVisible();
+    // The title appears in the breadcrumb and header too; the <h1> is the unambiguous one.
+    await expect(page.getByRole('heading', { name: /not found/i })).toBeVisible();
   });
 });

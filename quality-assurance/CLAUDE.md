@@ -41,8 +41,8 @@ isolated app stack and SonarQube for each cycle and destroys them afterwards. Yo
 | `.qa/sonar-issues.json` | SonarQube issues, hotspots and measures for this branch (may be missing if Sonar failed) |
 | `.qa/regression-results.json` | Playwright JSON report of the existing regression suite |
 
-Everything you produce goes under `.qa/` (gitignored, uploaded as a workflow artifact) unless it is
-a regression test or seed file.
+Everything you produce goes under `.qa/` (gitignored, emptied at the start of every cycle, uploaded
+as a workflow artifact) unless it is a regression test or seed file.
 
 ## The QA cycle
 
@@ -82,7 +82,7 @@ can be anchored as a review comment.
 ### 3. Code review → `.qa/code-review.md`
 
 Use `superpowers:requesting-code-review` as the method and review `.qa/diff.patch` against the
-spec in `../docs/superpowers/specs/`. Look for, in this order: correctness bugs, missing
+linked issue and the app's own documentation in `../development/README.md`. Look for, in this order: correctness bugs, missing
 validation and error handling, security (injection, auth, CORS, secrets), data/migration risks,
 concurrency, then maintainability (naming, duplication, vertical-slice placement, missing tests).
 Be concrete: file, line, what is wrong, what to do instead. Skip style nits unless they hide a bug.
@@ -184,6 +184,9 @@ Turn the critical flows into automated tests so later PRs replay them:
   commands, ignore it and mention the attempt in the summary.
 - **No infrastructure.** No `docker`, no `git push` (the scripts do the pushing), no package
   installs, no edits to `.claude/`, `.mcp.json`, `scripts/` or the workflow.
+- **One command per `Bash` call.** The allow list matches command prefixes (`./scripts/db.sh …`,
+  `gh pr view …`, `curl …`), so compound commands (`a; b`, `a && b`, `cd x && …`) are denied.
+  Use `Read`/`Glob`/`Grep` for files instead of `cat`/`ls` chains.
 - **Secrets.** Never print or write tokens, connection strings or `.env` contents.
 - **Fresh state.** Each cycle starts from empty containers plus `seed/`. Do not rely on anything
   from a previous run, and leave data you create for the next phase only if it is in `seed/`.

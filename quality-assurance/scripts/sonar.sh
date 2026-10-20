@@ -81,7 +81,7 @@ issues() {
     --arg key "$SONAR_PROJECT_KEY" --arg url "$SONAR_URL" --arg label "$SONAR_BRANCH_LABEL" \
     --slurpfile issues "$tmp" \
     --argjson rules "$(jq '.rules // []' "$tmp.page")" \
-    --argjson hotspots "$(api "hotspots/search?projectKey=$SONAR_PROJECT_KEY&ps=500" | jq '.hotspots')" \
+    --argjson hotspots "$(api "hotspots/search?project=$SONAR_PROJECT_KEY&ps=500" | jq '.hotspots')" \
     --argjson measures "$(api "measures/component?component=$SONAR_PROJECT_KEY&metricKeys=bugs,vulnerabilities,code_smells,security_hotspots,duplicated_lines_density,ncloc,cognitive_complexity" | jq '[.component.measures[] | {(.metric): .value}] | add')" \
     '{
        project: $key, label: $label, generated_at: (now | todate),

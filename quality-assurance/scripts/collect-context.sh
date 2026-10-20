@@ -7,6 +7,8 @@ need gh; need jq
 : "${PR_NUMBER:?PR_NUMBER is required}"
 : "${GITHUB_REPOSITORY:=$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
 R=$GITHUB_REPOSITORY
+# Fresh cycle: the runner reuses its work directory, so drop anything a previous run left behind.
+rm -rf "${QA_OUT:?}"/* "${QA_OUT:?}"/.[!.]* 2>/dev/null || true
 mkdir -p "$QA_OUT/screenshots"
 
 log "PR #$PR_NUMBER metadata"
