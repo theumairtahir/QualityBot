@@ -17,6 +17,8 @@ if (!apiBaseUrl.EndsWith('/'))
 
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 builder.Services.AddScoped<SystemInfoClient>();
+builder.Services.AddScoped<StudentsClient>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddTailwindUi();
 
 await builder.Build().RunAsync();

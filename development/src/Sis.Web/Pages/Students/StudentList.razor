@@ -1,0 +1,72 @@
+@page "/students"
+@using System.Text.Json
+@using Sis.Contracts.Students
+@inject StudentsClient Students
+
+<PageTitle>Students · SIS</PageTitle>
+
+<PageHeading Title="Students" Description="Everyone enrolled at your campus.">
+    <Actions>
+        <Button Href="/students/new" Text="Add student" data-testid="add-student" />
+    </Actions>
+</PageHeading>
+
+<div class="mt-8" data-testid="student-list">
+    @if (_unreachable)
+    {
+        <Alert Color="ThemeColor.Danger" Title="Couldn't load students">
+            Check that the API is running, then reload the page.
+        </Alert>
+    }
+    else if (_students is null)
+    {
+        <span class="text-dark-500 text-sm">Loading students…</span>
+    }
+    else if (_students.Count == 0)
+    {
+        <EmptyState Title="No students yet">Add the first student to get started.</EmptyState>
+    }
+    else
+    {
+        <Table TItem="StudentResponse" Items="_students" AriaLabel="Students">
+            <Columns>
+                <TableColumn TItem="StudentResponse" Header="Name">
+                    <CellTemplate>@FullName(context)</CellTemplate>
+                </TableColumn>
+                <TableColumn TItem="StudentResponse" Header="Class">
+                    <CellTemplate>@context.ClassName</CellTemplate>
+                </TableColumn>
+                <TableColumn TItem="StudentResponse" Header="Email">
+                    <CellTemplate>@(context.Email ?? Dash)</CellTemplate>
+                </TableColumn>
+                <TableColumn TItem="StudentResponse" Header="Date of birth">
+                    <CellTemplate>@Born(context)</CellTemplate>
+                </TableColumn>
+            </Columns>
+        </Table>
+    }
+</div>
+
+@code {
+    private const string Dash = "—";
+
+    private IReadOnlyList<StudentResponse>? _students;
+    private bool _unreachable;
+
+    private static string FullName(StudentResponse s) => $"{s.FirstName} {s.LastName}";
+
+    private static string Born(StudentResponse s) => s.DateOfBirth?.ToString("d MMM yyyy") ?? Dash;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _students = await Students.ListAsync();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException
+                                       or NotSupportedException or InvalidOperationException)
+        {
+            _unreachable = true;
+        }
+    }
+}
