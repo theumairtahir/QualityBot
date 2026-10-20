@@ -37,10 +37,10 @@ su - "$RUNNER_USER" -c "npx --yes playwright@$PLAYWRIGHT_VERSION install chromiu
 
 echo "== Claude Code for $RUNNER_USER"
 su - "$RUNNER_USER" -c 'curl -fsSL https://claude.ai/install.sh | bash' >/dev/null
-su - "$RUNNER_USER" -c 'grep -q ".local/bin" ~/.bashrc || echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/.bashrc'
+su - "$RUNNER_USER" -c 'grep -qF "/.local/bin" ~/.bashrc || echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/.bashrc'
 # Jobs get PATH from the runner's .path file, not from .bashrc.
 runner_path="/home/$RUNNER_USER/actions-runner/.path"
-if [ -f "$runner_path" ] && ! grep -q ".local/bin" "$runner_path"; then
+if [ -f "$runner_path" ] && ! grep -qF "/.local/bin" "$runner_path"; then
   sed -i "1s#^#/home/$RUNNER_USER/.local/bin:#" "$runner_path"
 fi
 su - "$RUNNER_USER" -c '~/.local/bin/claude --version'
