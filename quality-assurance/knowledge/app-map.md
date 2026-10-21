@@ -2,15 +2,16 @@
 
 Student Information System: Blazor WebAssembly client (`web`, port 8080) → minimal API (`api`,
 port 8081) → PostgreSQL 18 (`db`, host port 5433, database/user/password `sis`).
-Seeded from the PR #15 cycles (2026-10-20 / 2026-10-21); the agent keeps it current.
+Seeded from the PR #15 cycles (2026-10-20 / 2026-10-21), extended in PR #16 (2026-10-21); the agent keeps it current.
 
 ## Pages (client routes)
 
 | Route | Page | Notes |
 | --- | --- | --- |
 | `/` | Dashboard | System-info card shows `Connected · v<version> · <environment>` (`Badge` text "Connected") |
-| `/students` | Student list | `GET /api/students`; table (aria-label "Students") with Name, Class, Email, Date of birth (`d MMM yyyy`, "—" when empty); empty state heading "No students yet"; "Add student" button `data-testid="add-student"`; error banner "Couldn't load students" |
-| `/students/new` | Add student | Form `data-testid="student-form"`: first name, last name, date of birth, email, class. Save button `data-testid="save-student"`, Cancel link → `/students`. Success → toast "Student added" / "<First> <Last> is now on record." + redirect to `/students` |
+| `/students` | Student list | `GET /api/students[?search=]`; search box `input#student-search` (role searchbox, aria-label "Search students", placeholder "Search by name", 250 ms debounce, term trimmed); table (the `AriaLabel="Students"` parameter is **not** rendered — scope by `getByTestId('student-list')`) with Roll no., Name, Class, Email, Date of birth (`d MMM yyyy`, "—" when empty), sr-only "Actions" column with `data-testid="edit-student"` (link → `/students/{id}/edit`) and `data-testid="remove-student"` (button). Empty states: "No students yet" (no filter) / "No students found" + `No student's name matches "<term>".` (filter). Remove modal `#remove-student-dialog` (role dialog, heading "Remove student?", text `data-testid="remove-confirmation"` = "<First> <Last> (roll no. N) will be removed permanently. This can't be undone.", buttons `cancel-remove` / `confirm-remove`; Escape closes). Success toast "Student removed" / "<First> <Last> was removed."; failure toast "Couldn't remove the student". "Add student" button `data-testid="add-student"`; error banner "Couldn't load students" (PR #16) |
+| `/students/new` | Add student | Shared `StudentForm` `data-testid="student-form"`: first name, last name, date of birth, email, class. Save button `data-testid="save-student"`, Cancel link → `/students`. Success → toast "Student added" / "<First> <Last> is now on record." + redirect to `/students` |
+| `/students/{id:guid}/edit` | Edit student | `GET /api/students/{id}` → same `StudentForm` prefilled; Save → `PUT`; success toast "Student updated" / "<First> <Last>'s details were saved." + redirect `/students`. 404 → `data-testid="student-not-found"` empty state "Student not found" with link "Back to students"; network failure → alert "Couldn't load the student"; non-GUID id → "Page not found" (PR #16) |
 | `/staff`, `/fees`, `/reports`, `/settings`, `/admissions`, `/classes`, … | Module placeholders | No behaviour yet |
 | any other | Not found | `<h1>` "Page not found"; the title also appears in breadcrumb and header (`data-testid="page-title"`), so locate by heading role |
 
@@ -22,8 +23,11 @@ Shell: `SidebarLayout` with a `<nav>` "Main" sidebar and header (TailwindUi.Blaz
 | --- | --- | --- |
 | `GET /health` | Health check incl. DB | Returns plain `Healthy` |
 | `GET /api/system/info` | Version / environment for the dashboard | |
-| `GET /api/students` | List students | Ordered by last name, then first name; no paging |
-| `POST /api/students` | Create student | Body `firstName, lastName, dateOfBirth (yyyy-MM-dd), email, className`. 201 + JSON body; 400 ProblemDetails with `errors` map on validation failure (keys `FirstName`, `LastName`, `Email`, `DateOfBirth`, `ClassName`); malformed JSON/date → 400 **without** `errors`; no body content type → 415. `Location: /api/students/{id}` but no `GET /api/students/{id}` exists (404) |
+| `GET /api/students?search=` | List students | Ordered by last name, then first name; no paging. `search` (optional, trimmed, whitespace = none) filters `ILIKE '%term%'` on `first_name || ' ' || last_name` with `\`, `%`, `_` escaped (literal). Response items carry `rollNumber` (PR #16) |
+| `GET /api/students/{id:guid}` | One student | 200 JSON / 404 ProblemDetails (also 404 for a non-GUID) (PR #16) |
+| `POST /api/students` | Create student | Body `firstName, lastName, dateOfBirth (yyyy-MM-dd), email, className`. 201 + JSON body incl. `rollNumber`; 400 ProblemDetails with `errors` map on validation failure (keys `FirstName`, `LastName`, `Email`, `DateOfBirth`, `ClassName`); malformed JSON/date → 400 **without** `errors`; no body content type → 415. `Location: /api/students/{id}` |
+| `PUT /api/students/{id:guid}` | Replace a student's details | Same body and validation as POST (validation runs before the existence check); 200 + JSON; 404 unknown id. `id`, `rollNumber`, `created_at_utc` never change (PR #16) |
+| `DELETE /api/students/{id:guid}` | Remove a student | 204; 404 when already gone (the client treats 404 as removed) (PR #16) |
 
 CORS allows origin `http://localhost:8080` only (foreign `Origin` gets no CORS headers; the request is still processed).
 
@@ -31,7 +35,7 @@ CORS allows origin `http://localhost:8080` only (foreign `Origin` gets no CORS h
 
 | Table | Columns of note |
 | --- | --- |
-| `students` | `id uuid`, `first_name`/`last_name varchar(100)` (trimmed on save), `date_of_birth date null`, `email varchar(254) null` (trimmed; empty → NULL), `class_name varchar(50)`, `created_at_utc timestamptz` |
+| `students` | `id uuid`, `roll_number integer NOT NULL GENERATED BY DEFAULT AS IDENTITY` (unique index `ix_students_roll_number`, no column default, numbers not reused; PR #16 migration `20261021080718_AddStudentRollNumber`), `first_name`/`last_name varchar(100)` (trimmed on save), `date_of_birth date null`, `email varchar(254) null` (trimmed; empty → NULL), `class_name varchar(50)`, `created_at_utc timestamptz` |
 
 Migrations run automatically when the API starts (`Database__ApplyMigrationsOnStartup=true`).
 
@@ -56,7 +60,13 @@ only POSTs when the model is valid.
 ## Test IDs and selectors that work
 
 - `getByTestId('save-student')`, `getByTestId('add-student')`, `getByTestId('student-form')`,
-  `getByTestId('student-list')`, `getByTestId('page-title')`.
+  `getByTestId('student-list')`, `getByTestId('page-title')`, and from PR #16: `edit-student`,
+  `remove-student` (per row), `remove-confirmation`, `cancel-remove`, `confirm-remove`,
+  `student-not-found`.
+- Search: `getByRole('searchbox', { name: 'Search students' })` (or `input#student-search`; the bare
+  `#student-search` matches the wrapper div too). Rows: `getByRole('row', { name: /First Last/ })`;
+  a row's accessible name now starts with the roll number, so never anchor on `^First`. Dialog:
+  `getByRole('dialog')`.
 - Inputs: `input[name="first-name"]`, `input[name="last-name"]`, `input[name="email"]`,
   `select[name="class-name"]` (hidden disabled placeholder option "Select a class"). `getByLabel`
   does **not** work for these (duplicate ids, known issue `form-labels-not-associated`).

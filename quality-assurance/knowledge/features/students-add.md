@@ -51,6 +51,13 @@ last tested 2026-10-21 (cycle 3: 32 cases, 28 pass, 3 fail, 1 skipped; verdict P
 - Keyboard: logical tab order; Enter in a text field submits.
 - Extra JSON fields (`id`, `createdAtUtc`) are ignored by the API.
 
+## Changes since
+
+- PR #16 (2026-10-21): the form moved into the shared `StudentForm` component (also used by
+  `/students/{id}/edit`); the add flow was re-verified (manual + regression suite). The list now
+  starts each row with the roll number — `students.spec.ts` trim test re-anchored on the name cell.
+  See `students-list-edit.md`.
+
 ## Still to test
 
 - UI behaviour on a 500 / 400-without-errors response (needs API fault injection).
