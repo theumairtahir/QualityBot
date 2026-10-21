@@ -33,6 +33,25 @@ public sealed class CreateStudentRequestTests
         (Valid() with { Email = email }).Validate(Today).Should().ContainKey("Email");
 
     [Fact]
+    public void An_email_longer_than_the_column_allows_is_rejected()
+    {
+        var email = new string('a', 250) + "@example.com";
+
+        var errors = (Valid() with { Email = email }).Validate(Today);
+
+        errors["Email"].Should().ContainSingle().Which.Should().Contain("254");
+    }
+
+    [Fact]
+    public void An_email_of_exactly_254_characters_is_accepted()
+    {
+        var email = new string('a', 242) + "@example.com";
+
+        email.Length.Should().Be(254);
+        (Valid() with { Email = email }).Validate(Today).Should().BeEmpty();
+    }
+
+    [Fact]
     public void An_unknown_class_is_rejected() =>
         (Valid() with { ClassName = "Grade 99" }).Validate(Today).Should().ContainKey("ClassName");
 

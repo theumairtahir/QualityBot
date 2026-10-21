@@ -11,6 +11,7 @@ public sealed record CreateStudentRequest(
     string? ClassName)
 {
     public const int MaxNameLength = 100;
+    public const int MaxEmailLength = 254;
 
     /// <summary>Field name → messages. Empty when the request is valid.</summary>
     public IReadOnlyDictionary<string, string[]> Validate(DateOnly today)
@@ -29,9 +30,16 @@ public sealed record CreateStudentRequest(
             errors[nameof(ClassName)] = ["Pick a class from the list."];
         }
 
-        if (!string.IsNullOrWhiteSpace(Email) && !IsEmail(Email))
+        if (!string.IsNullOrWhiteSpace(Email))
         {
-            errors[nameof(Email)] = ["Enter a valid email address."];
+            if (Email.Trim().Length > MaxEmailLength)
+            {
+                errors[nameof(Email)] = [$"Email must be at most {MaxEmailLength} characters."];
+            }
+            else if (!IsEmail(Email))
+            {
+                errors[nameof(Email)] = ["Enter a valid email address."];
+            }
         }
 
         if (DateOfBirth is { } dob && dob > today)

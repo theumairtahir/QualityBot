@@ -25,7 +25,7 @@ public sealed class StudentConfiguration : IEntityTypeConfiguration<Student>
         builder.HasKey(student => student.Id);
         builder.Property(student => student.FirstName).HasMaxLength(CreateStudentRequest.MaxNameLength);
         builder.Property(student => student.LastName).HasMaxLength(CreateStudentRequest.MaxNameLength);
-        builder.Property(student => student.Email).HasMaxLength(254);
+        builder.Property(student => student.Email).HasMaxLength(CreateStudentRequest.MaxEmailLength);
         builder.Property(student => student.ClassName).HasMaxLength(50);
     }
 }
