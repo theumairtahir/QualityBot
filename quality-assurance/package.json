@@ -11,7 +11,8 @@
     "test:regression": "playwright test tests/regression --pass-with-no-tests",
     "test:ui": "playwright test --ui",
     "report": "playwright show-report",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "test:critical": "playwright test --grep @critical --pass-with-no-tests"
   },
   "devDependencies": {
     "@playwright/mcp": "0.0.83",

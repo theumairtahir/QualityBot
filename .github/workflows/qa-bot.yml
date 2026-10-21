@@ -1,0 +1,174 @@
+# QualityBot: on every pull request, start an isolated copy of the app on the self-hosted runner,
+# analyse it with SonarQube, replay the regression suite, then let Claude run a full QA cycle
+# (code review + manual testing through Playwright MCP) and report back on the PR.
+# The agent's instructions live in quality-assurance/CLAUDE.md; the scripts in quality-assurance/scripts.
+name: QA Bot
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# One cycle per PR at a time; a new push cancels the cycle in progress.
+concurrency:
+  group: qa-bot-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write        # push regression tests to the PR branch and screenshots to qa-artifacts
+  pull-requests: write   # comments and reviews
+  issues: write          # linked issue: read acceptance criteria, post QA status comment + qa:* labels
+
+jobs:
+  # The cycle pushes regression tests back to the PR branch. That push is tagged "[skip ci]", but as a
+  # second line of defence this job inspects the PR head commit and skips the cycle when it is the
+  # bot's own, so the workflow can never re-trigger itself.
+  guard:
+    name: Skip bot commits
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: [self-hosted, qa-bot]
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - id: check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          commit=$(gh api "repos/${{ github.repository }}/commits/$HEAD_SHA" --jq '{author: .commit.author.email, subject: (.commit.message | split("\n")[0])}')
+          author=$(jq -r .author <<<"$commit"); subject=$(jq -r .subject <<<"$commit")
+          echo "head: $HEAD_SHA by $author — $subject"
+          if [ "$author" = "qualitybot@users.noreply.github.com" ] || grep -qiE '\[(skip ci|ci skip|skip qa)\]' <<<"$subject"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::QA cycle skipped: the PR head is QualityBot's own commit (or is marked to skip)."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  qa-cycle:
+    name: QA cycle
+    needs: guard
+    if: ${{ needs.guard.outputs.skip != 'true' }}
+    runs-on: [self-hosted, qa-bot]
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+        working-directory: quality-assurance
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+      BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+      PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+      QA_PROJECT: qa-pr-${{ github.event.pull_request.number }}-${{ github.run_attempt }}
+      QA_WEB_URL: http://localhost:8080
+      QA_API_URL: http://localhost:8081
+      QA_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      GH_TOKEN: ${{ github.token }}
+      # TailwindUi.Blazor lives on a private GitHub Packages feed; GITHUB_TOKEN cannot read it.
+      GH_PACKAGES_USER: ${{ vars.GH_PACKAGES_USER || github.repository_owner }}
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      QA_MODEL: ${{ vars.QA_MODEL }}
+      FORCE_COLOR: "0"
+      CI: "true"
+
+    steps:
+      - name: Check out PR head
+        uses: actions/checkout@v4
+        with:
+          # Same-repo PRs check out the branch so tests can be pushed back; forks get the detached SHA.
+          ref: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref || github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Check secrets
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          fail=0
+          # Claude auth: an explicit secret wins; otherwise use the login stored on this runner for its own user.
+          if [ -z "$ANTHROPIC_API_KEY$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            if claude auth status 2>/dev/null | grep -q '"loggedIn": true'; then
+              echo "Using the Claude login stored on this runner ($(whoami))."
+            else
+              echo "::error::Claude is not logged in for '$(whoami)' on this runner. Run 'claude' as that user and log in, or set repository secret ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN."; fail=1
+            fi
+          fi
+          if [ -z "$GH_PACKAGES_TOKEN" ]; then
+            echo "::error::Set repository secret GH_PACKAGES_TOKEN (PAT with read:packages) so the app can build."; fail=1
+          fi
+          exit $fail
+
+      - name: Runner tools on PATH
+        run: |
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          chmod +x scripts/*.sh sonarqube/scan.sh
+
+      - name: Node dependencies and browser
+        run: |
+          npm ci
+          npx playwright install chromium
+
+      - name: Claude plugins
+        run: ./scripts/install-plugins.sh
+
+      - name: Collect PR context
+        run: ./scripts/collect-context.sh
+
+      - name: Start application under test
+        run: ./scripts/app-up.sh
+
+      - name: SonarQube analysis
+        id: sonar
+        continue-on-error: true
+        run: ./scripts/sonar.sh all
+
+      - name: Regression suite
+        id: regression
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: .qa/regression-results.json
+        run: npx playwright test tests/regression --pass-with-no-tests --reporter=list,json,html
+
+      - name: QA cycle (Claude)
+        id: claude
+        run: ./scripts/run-claude.sh
+
+      - name: Report to linked issue
+        # Runs on success or failure (not on cancel): posts/updates the QA status comment on the
+        # linked issue and sets qa:passed / qa:failed. Missing verdict → "QA incomplete".
+        if: ${{ success() || failure() }}
+        continue-on-error: true
+        run: ./scripts/post-issue-status.sh
+
+      - name: Upload QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-pr-${{ github.event.pull_request.number }}-run-${{ github.run_id }}
+          path: |
+            quality-assurance/.qa
+            quality-assurance/playwright-report
+            quality-assurance/test-results
+          if-no-files-found: ignore
+          include-hidden-files: true   # .qa/ is a dot-folder; upload-artifact skips those by default
+          retention-days: 30
+
+      - name: Tear down containers
+        if: always()
+        run: ./scripts/app-down.sh
+
+      - name: Verdict
+        # Skip when an earlier step already failed before the agent ran (e.g. missing secrets):
+        # the real error is above and a second "no verdict" error would only bury it.
+        if: ${{ always() && steps.claude.outcome != 'skipped' }}
+        run: |
+          if [ "${{ steps.sonar.outcome }}" = failure ]; then echo "::warning::SonarQube step failed; see sonar-scan.log in the artifact."; fi
+          if [ "${{ steps.regression.outcome }}" = failure ]; then echo "::warning::Regression suite had failures; the QA summary explains which are bugs."; fi
+          if [ ! -f .qa/verdict.json ]; then echo "::error::The QA cycle did not produce .qa/verdict.json"; exit 1; fi
+          cat .qa/verdict.json
+          verdict=$(jq -r .verdict .qa/verdict.json)
+          echo "## QA verdict: $verdict" >> "$GITHUB_STEP_SUMMARY"
+          [ -f .qa/summary.md ] && cat .qa/summary.md >> "$GITHUB_STEP_SUMMARY"
+          [ "$verdict" = pass ] || { echo "::error::QA found open Critical/High bugs"; exit 1; }

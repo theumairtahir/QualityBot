@@ -22,3 +22,7 @@ trace.zip
 
 # Node
 node_modules/
+
+# QA cycle output and SonarQube scanner state
+.qa/
+.sonarqube/
