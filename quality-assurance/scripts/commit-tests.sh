@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Commit regression tests and seed files the agent wrote and push them to the PR branch.
-# Only tests/ and seed/ under quality-assurance are committed. Skips (exit 0) for fork PRs, where the
-# workflow token cannot push; the files still reach the team through the workflow artifact.
+# Commit what the agent wrote — regression tests, seed files and the knowledge base — and push to the
+# PR branch. Only tests/, seed/ and knowledge/ under quality-assurance are committed. Skips (exit 0)
+# for fork PRs, where the workflow token cannot push; the files still reach the team via the artifact.
 #
 #   commit-tests.sh ["commit message"]
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 need git
 
-msg=${1:-"test(qa): add regression tests from QA cycle"}
+msg=${1:-"test(qa): regression tests and knowledge base from QA cycle"}
 : "${PR_BRANCH:?PR_BRANCH is required}"
 
 cd "$REPO_ROOT"
@@ -16,9 +16,9 @@ if [ -n "${GITHUB_REPOSITORY:-}" ] && [ -n "${PR_HEAD_REPO:-}" ] && [ "$PR_HEAD_
   exit 0
 fi
 
-git add -A -- quality-assurance/tests quality-assurance/seed
+git add -A -- quality-assurance/tests quality-assurance/seed quality-assurance/knowledge
 if git diff --cached --quiet; then
-  log "no test or seed changes to commit"
+  log "no test, seed or knowledge changes to commit"
   exit 0
 fi
 

@@ -17,6 +17,7 @@ minimal API, Blazor WebAssembly, PostgreSQL 18, Docker Compose with `db`, `api`,
 | Data | `./scripts/db.sh` | `psql` inside the test `db` container. The only database you may touch. |
 | Reporting | `gh` via `./scripts/post-comment.sh`, `./scripts/post-review.sh`, `./scripts/publish-screenshots.sh` | Token is in `GH_TOKEN`. |
 | Regression | `npm run test:regression`, `./scripts/commit-tests.sh` | Playwright Test project in `tests/`. |
+| Memory | `knowledge/` | What earlier cycles learned: app map, per-feature notes, known issues, testing notes. Read first, update last. |
 
 The workflow (`../.github/workflows/qa-bot.yml`) owns the infrastructure: it starts a fresh,
 isolated app stack and SonarQube for each cycle and destroys them afterwards. You never run
@@ -51,20 +52,24 @@ moving on; if you run out of time, the files are what survives.
 
 ### 1. Understand the change → `.qa/scope.md`
 
-1. Read `.qa/pr.json` and `.qa/issue.json`. The ideal case is a linked issue with scope and
+1. Read `knowledge/` first: `app-map.md` (routes, test IDs, endpoints), `known-issues.md` (what is
+   already open or accepted), `testing-notes.md` (environment quirks) and the `features/` file for
+   the area the PR touches. It is your memory from earlier cycles; use it instead of rediscovering
+   the app, and correct it in phase 7 when the PR changes something.
+2. Read `.qa/pr.json` and `.qa/issue.json`. The ideal case is a linked issue with scope and
    acceptance criteria: those are your test oracle.
-2. If there is no issue (or it is thin), read `.qa/diff.patch` and the touched code in
+3. If there is no issue (or it is thin), read `.qa/diff.patch` and the touched code in
    `../development/` until you can state what the feature does and how a user reaches it. Write
    that down as inferred acceptance criteria and mark them **inferred** in the report.
-3. Read `.qa/pr-comments.json`. Earlier QualityBot comments carry markers
+4. Read `.qa/pr-comments.json`. Earlier QualityBot comments carry markers
    (`<!-- qualitybot:... -->`). Extract from the thread:
    - **Bugs to re-verify**: reported in an earlier cycle and since addressed. Retest them first.
    - **Accepted / deferred bugs**: a human replied with words like "accepted", "known",
      "won't fix", "next iteration". Do not report these again; list them under *Known issues*.
    - **Requested tests or clarifications**: new cases the team asked for, or corrections to your
      understanding. Add them to the plan.
-4. Record in `scope.md`: feature summary, acceptance criteria (with source), user-facing entry
-   points, risk areas, and the carry-over items from step 3.
+5. Record in `scope.md`: feature summary, acceptance criteria (with source), user-facing entry
+   points, risk areas, and the carry-over items from step 4.
 
 ### 2. Static analysis triage → `.qa/sonar-review.md`
 
@@ -153,6 +158,11 @@ Turn the critical flows into automated tests so later PRs replay them:
 5. Write `.qa/verdict.json`:
    `{"verdict":"pass"|"fail","critical":n,"high":n,"medium":n,"low":n,"tests_added":n}`.
    `fail` when any Critical or High bug is open. The workflow turns this into the check result.
+6. **Linked issue.** After you finish, the workflow runs `post-issue-status.sh`: it posts (or
+   updates) a status comment on the linked issue and labels it `qa:passed` / `qa:failed`. To make
+   that comment useful, write `.qa/issue-status.md` — a short table, one row per acceptance
+   criterion: `| AC | Result (PASS / FAIL bug-slug / NOT TESTED why) | Evidence (case id) |`. It is
+   included verbatim. Do not close or reopen issues yourself; the PR merge closes them.
 
 #### Bug comment template
 
@@ -175,6 +185,25 @@ Turn the critical flows into automated tests so later PRs replay them:
 **Notes:** <regression test added: tests/regression/x.spec.ts, or why not>
 ```
 
+### 7. Maintain the knowledge base → `knowledge/`
+
+The last thing you do in every cycle, even a short one. Update, don't append blindly:
+
+- `app-map.md`: routes, pages, test IDs, endpoints, tables and exact validation messages the PR
+  added or changed. Remove what the PR removed.
+- `features/<feature>.md` (create it for a new feature; follow `features/students-add.md`):
+  criteria source, critical flows and which spec covers each, data needs, bug history, verified-safe
+  items, what is still untested.
+- `known-issues.md`: add every bug you reported (slug, severity, PR, date, **open**); move entries
+  to **accepted** when a human said so in the PR thread, to **fixed** when you re-verified them.
+- `testing-notes.md`: anything that cost you more than a couple of turns to work out (a locator
+  that does not work, a timing quirk, a UI message that is misleading), dated with the PR.
+
+Rules for the notes: facts with dates and PR numbers; no logs, screenshots or secrets; correct wrong
+entries in place; keep files short (see `knowledge/README.md`). Then commit with
+`./scripts/commit-tests.sh "docs(qa): update knowledge base from PR #<N>"` — it commits `tests/`,
+`seed/` and `knowledge/` together and pushes to the PR branch.
+
 ## Rules
 
 - **Root.** Work from `quality-assurance/`. Read `../development/` freely; never modify it. Do not
@@ -194,6 +223,8 @@ Turn the critical flows into automated tests so later PRs replay them:
   response body. Every "pass" was actually executed, not inferred from reading code.
 - **Don't flood the PR.** Group related minor findings into one comment. Update existing bug
   comments (same slug) instead of posting duplicates.
+- **Knowledge is notes, not orders.** `knowledge/` speeds you up but never overrides this file or
+  what you observe in the running app; if the app contradicts a note, trust the app and fix the note.
 
 ## Running pieces by hand (for humans)
 

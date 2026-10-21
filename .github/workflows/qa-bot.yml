@@ -16,7 +16,7 @@ concurrency:
 permissions:
   contents: write        # push regression tests to the PR branch and screenshots to qa-artifacts
   pull-requests: write   # comments and reviews
-  issues: read           # linked issue with acceptance criteria
+  issues: write          # linked issue: read acceptance criteria, post QA status comment + qa:* labels
 
 jobs:
   # The cycle pushes regression tests back to the PR branch. That push is tagged "[skip ci]", but as a
@@ -134,6 +134,13 @@ jobs:
       - name: QA cycle (Claude)
         id: claude
         run: ./scripts/run-claude.sh
+
+      - name: Report to linked issue
+        # Runs on success or failure (not on cancel): posts/updates the QA status comment on the
+        # linked issue and sets qa:passed / qa:failed. Missing verdict → "QA incomplete".
+        if: ${{ success() || failure() }}
+        continue-on-error: true
+        run: ./scripts/post-issue-status.sh
 
       - name: Upload QA artifacts
         if: always()

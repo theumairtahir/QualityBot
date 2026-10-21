@@ -16,6 +16,8 @@ For each pull request, the workflow on the self-hosted runner:
 4. **Tests the application** with Claude, driving a real browser through the Playwright MCP server and applying the QA skills in [quality-assurance/](quality-assurance/) (test design, boundary analysis, exploratory testing, accessibility, API testing, ...).
 5. **Reports findings on the PR**: bugs are posted as review comments with screenshots attached.
 6. **Grows the regression suite**: critical flows the agent exercises are saved as Playwright scripts in a test project, so later PRs can replay them as regression checks.
+7. **Maintains a knowledge base** in [quality-assurance/knowledge/](quality-assurance/knowledge/): app map, per-feature notes, known issues and testing notes, read at the start of each cycle and updated at the end, committed with the tests.
+8. **Reports to the linked issue**: a status comment (passed / failed / incomplete, with counts and a link to the full report) and a `qa:passed` or `qa:failed` label, so the issue shows QA state without opening the PR.
 
 ```text
  Pull request

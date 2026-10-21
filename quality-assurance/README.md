@@ -13,6 +13,7 @@ The QA bot's sub-project. Open Claude Code **from this folder** (not the repo ro
 | [sonarqube/](sonarqube/) | SonarQube + .NET scanner in Docker, one throwaway instance per cycle |
 | [tests/regression/](tests/regression/) | Playwright regression suite; the agent adds critical flows here |
 | [seed/](seed/) | Idempotent SQL applied to the fresh test database before each cycle |
+| [knowledge/](knowledge/) | The bot's memory across cycles: app map, per-feature notes, known issues, testing notes. Read in phase 1, updated in phase 7, committed with the tests |
 | [.mcp.json](.mcp.json) | Playwright MCP server (headless Chromium, isolated profile) |
 | [.claude/settings.json](.claude/settings.json) | Enabled plugins, tool allow/deny lists |
 | `*-testing/`, `qa-toolkit/`, ... | 8 QA skill plugins (63 skills) served by the local marketplace in `.claude-plugin/` |
@@ -30,7 +31,8 @@ The QA bot's sub-project. Open Claude Code **from this folder** (not the repo ro
 | `publish-screenshots.sh` | agent | Push `.qa/screenshots` to the `qa-artifacts` branch, return URLs |
 | `post-comment.sh <marker> <md>` | agent | Upsert a PR comment (summary, one per bug) |
 | `post-review.sh <json>` | agent | PR review with inline comments (COMMENT / REQUEST_CHANGES) |
-| `commit-tests.sh [msg]` | agent | Commit `tests/` + `seed/` and push to the PR branch |
+| `commit-tests.sh [msg]` | agent | Commit `tests/` + `seed/` + `knowledge/` and push to the PR branch (`[skip ci]`) |
+| `post-issue-status.sh` | workflow | Status comment + `qa:passed`/`qa:failed` label on the linked issue |
 | `install-plugins.sh` | workflow, once per runner | Install QA plugins + superpowers at user scope |
 | `provision-runner.sh` | you, once per VM | Node, Playwright deps, Claude Code, sysctl for SonarQube |
 
