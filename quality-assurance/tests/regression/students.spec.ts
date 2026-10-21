@@ -81,7 +81,8 @@ test.describe('students: name rules', { tag: '@critical' }, () => {
     await page.locator('select[name="class-name"]').selectOption('Grade 5');
     await page.getByTestId('save-student').click();
     await expect(page.getByText(`Trim ${last} is now on record.`, { exact: true })).toBeVisible();
-    await expect(page.getByRole('row', { name: new RegExp(`^Trim ${last} `) })).toBeVisible();
+    // Since PR #16 the row starts with the roll number, so anchor on the name cell, not on the row start.
+    await expect(page.getByRole('cell', { name: `Trim ${last}`, exact: true })).toBeVisible();
   });
 
   for (const bad of ['John3', 'Ann@!#', '-Ann', 'Smith_Two']) {

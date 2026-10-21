@@ -25,16 +25,8 @@ public sealed class CreateStudent : IEndpoint
             return Results.ValidationProblem(errors.ToDictionary(pair => pair.Key, pair => pair.Value));
         }
 
-        var student = new Student
-        {
-            Id = Guid.NewGuid(),
-            FirstName = request.FirstName!.Trim(),
-            LastName = request.LastName!.Trim(),
-            DateOfBirth = request.DateOfBirth,
-            Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
-            ClassName = request.ClassName!,
-            CreatedAtUtc = now,
-        };
+        var student = new Student { Id = Guid.NewGuid(), CreatedAtUtc = now };
+        student.Apply(request);
 
         db.Add(student);
         await db.SaveChangesAsync(cancellationToken);

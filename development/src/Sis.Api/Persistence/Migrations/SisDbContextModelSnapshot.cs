@@ -60,8 +60,19 @@ namespace Sis.Api.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("last_name");
 
+                    b.Property<int>("RollNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("roll_number");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RollNumber"));
+
                     b.HasKey("Id")
                         .HasName("pk_students");
+
+                    b.HasIndex("RollNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_students_roll_number");
 
                     b.ToTable("students", (string)null);
                 });

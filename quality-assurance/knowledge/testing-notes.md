@@ -20,6 +20,18 @@ Environment facts and lessons that save time in the next cycle.
 
 ## Lessons
 
+- 2026-10-21 (PR #16): `getByRole('table', { name: 'Students' })` finds nothing — the `Table`
+  component does not render its `AriaLabel`. Scope with `getByTestId('student-list').getByRole('table')`.
+- 2026-10-21 (PR #16): the roll-number cell is the first cell, so row names are `"17 Qa Searchable
+  Grade 3 …"`; use `getByRole('cell', { name, exact: true })` or an unanchored regex, never `^First`.
+- 2026-10-21 (PR #16): `#student-search` matches two elements (wrapper div + input, same duplicate-id
+  pattern as the form); use `input#student-search` or the searchbox role.
+- 2026-10-21 (PR #16): to simulate "another user", `curl -X DELETE` / `PUT` against `$QA_API_URL`
+  while the page is open works well; two browser tabs are not needed.
+- 2026-10-21 (PR #16): `mv`/`rm` inside `.qa/` need approval in the headless run — name screenshots
+  correctly the first time (`C7-future-dob-edit-wipes-dob.png` is misnamed: the DOB was *kept*).
+- 2026-10-21 (PR #16): the browser logs `Failed to load resource … 404` for intentional 404 calls
+  (edit of a removed student, DELETE after DELETE); that is not an application console error.
 - 2026-10-21 (PR #15): generated names must be **letters only** (`Date.now()` digits are rejected by
   the name rule). `students.spec.ts` has a base-26 `unique()` helper.
 - 2026-10-21 (PR #15): toast text appears twice (visible paragraph + live region) → `getByText`
@@ -43,3 +55,4 @@ Environment facts and lessons that save time in the next cycle.
 - UI presentation of a 500 or of a 400 without `errors` (needs the API stopped or a crafted
   response; not reachable through the form).
 - Whether the calendar popup itself can select a future date (only typing was tested).
+- Search stale-response race (PR #16 review): needs network throttling to reproduce.
