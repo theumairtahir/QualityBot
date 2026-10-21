@@ -1,9 +1,10 @@
 using System.Net.Mail;
+using System.Text.RegularExpressions;
 
 namespace Sis.Contracts.Students;
 
 /// <summary>The body of <c>POST /api/students</c>. The API and the form share <see cref="Validate"/>.</summary>
-public sealed record CreateStudentRequest(
+public sealed partial record CreateStudentRequest(
     string? FirstName,
     string? LastName,
     DateOnly? DateOfBirth,
@@ -60,7 +61,15 @@ public sealed record CreateStudentRequest(
         {
             errors[key] = [$"{label} must be at most {MaxNameLength} characters."];
         }
+        else if (!NamePattern().IsMatch(value.Trim()))
+        {
+            errors[key] = [$"{label} can only contain letters, spaces, hyphens and apostrophes."];
+        }
     }
+
+    // Letters (any script) with optional marks, spaces, hyphens and apostrophes: "Anne-Marie", "O'Brien".
+    [GeneratedRegex(@"^\p{L}[\p{L}\p{M} '’-]*$")]
+    private static partial Regex NamePattern();
 
     private static bool IsEmail(string value) =>
         MailAddress.TryCreate(value.Trim(), out var address) && address.Address == value.Trim() && value.Contains('.');

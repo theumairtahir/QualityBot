@@ -51,6 +51,29 @@ public sealed class CreateStudentRequestTests
         (Valid() with { Email = email }).Validate(Today).Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData("J0hn@#")]
+    [InlineData("John3")]
+    [InlineData("Ann@!#")]
+    [InlineData("-Ann")]
+    public void A_first_name_with_digits_or_special_characters_is_rejected(string name) =>
+        (Valid() with { FirstName = name }).Validate(Today).Should().ContainKey("FirstName");
+
+    [Theory]
+    [InlineData("QAui123!")]
+    [InlineData("Smith_2")]
+    public void A_last_name_with_digits_or_special_characters_is_rejected(string name) =>
+        (Valid() with { LastName = name }).Validate(Today).Should().ContainKey("LastName");
+
+    [Theory]
+    [InlineData("Anne-Marie")]
+    [InlineData("O'Brien")]
+    [InlineData("O’Neil")]
+    [InlineData("Zoë")]
+    [InlineData("  Ada Lovelace  ")]
+    public void Real_world_names_are_accepted(string name) =>
+        (Valid() with { FirstName = name, LastName = name }).Validate(Today).Should().BeEmpty();
+
     [Fact]
     public void An_unknown_class_is_rejected() =>
         (Valid() with { ClassName = "Grade 99" }).Validate(Today).Should().ContainKey("ClassName");
