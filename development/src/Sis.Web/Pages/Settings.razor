@@ -1,0 +1,109 @@
+@page "/settings"
+@using System.Text.Json
+@using Sis.Contracts.School
+@inject SchoolProfileClient Client
+@inject SchoolProfileState State
+@inject IToastService Toasts
+
+<PageTitle>Settings · SIS</PageTitle>
+
+<PageHeading Title="Settings" Description="The school's name and current academic year show across the app." />
+
+@if (_unreachable)
+{
+    <div class="mt-8">
+        <Alert Color="ThemeColor.Danger" Title="Couldn't load the school profile">
+            Check that the API is running, then reload the page.
+        </Alert>
+    </div>
+}
+else if (!_loaded)
+{
+    <span class="text-dark-500 mt-8 block text-sm">Loading settings…</span>
+}
+else
+{
+    <form class="mt-8 max-w-xl space-y-6" novalidate @onsubmit="SubmitAsync" data-testid="school-form">
+        @if (_failure is not null)
+        {
+            <Alert Color="ThemeColor.Danger" Title="Couldn't save the settings">@_failure</Alert>
+        }
+
+        <TextField TValue="string" Label="School name" Required="true" @bind-Value="_name"
+                   Error="@ErrorFor(nameof(UpdateSchoolProfileRequest.Name))" Id="school-name" />
+
+        <TextField TValue="string" Label="Academic year" Placeholder="2026-2027" @bind-Value="_academicYear"
+                   HelpText="Two consecutive years, like 2026-2027."
+                   Error="@ErrorFor(nameof(UpdateSchoolProfileRequest.AcademicYear))" Id="academic-year" />
+
+        <div class="flex items-center justify-end">
+            <Button Type="submit" Text="Save settings" State="@(_saving ? ButtonState.Processing : ButtonState.None)"
+                    data-testid="save-settings" />
+        </div>
+    </form>
+}
+
+@code {
+    private string? _name;
+    private string? _academicYear;
+
+    private bool _loaded;
+    private bool _unreachable;
+    private bool _saving;
+    private string? _failure;
+    private IReadOnlyDictionary<string, string[]> _errors = new Dictionary<string, string[]>();
+
+    private string? ErrorFor(string field) => _errors.TryGetValue(field, out var messages) ? messages[0] : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var profile = await Client.GetAsync();
+            _name = profile.Name;
+            _academicYear = profile.AcademicYear;
+            _loaded = true;
+        }
+        catch (Exception ex) when (IsApiFailure(ex))
+        {
+            _unreachable = true;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        _failure = null;
+        var request = new UpdateSchoolProfileRequest(_name, _academicYear);
+
+        _errors = request.Validate();
+        if (_errors.Count > 0)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var result = await Client.UpdateAsync(request);
+            if (!result.Succeeded)
+            {
+                _errors = result.Errors;
+                return;
+            }
+
+            State.Set(result.Profile!);
+            Toasts.ShowSuccess("Settings saved", $"{result.Profile!.Name} is now the school name.");
+        }
+        catch (Exception ex) when (IsApiFailure(ex))
+        {
+            _failure = "The API couldn't be reached. Check that it is running and try again.";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static bool IsApiFailure(Exception ex) =>
+        ex is HttpRequestException or TaskCanceledException or JsonException or NotSupportedException or InvalidOperationException;
+}

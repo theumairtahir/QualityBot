@@ -22,6 +22,29 @@ namespace Sis.Api.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Sis.Api.Features.School.SchoolProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AcademicYear")
+                        .HasMaxLength(9)
+                        .HasColumnType("character varying(9)")
+                        .HasColumnName("academic_year");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_school_profile");
+
+                    b.ToTable("school_profile", (string)null);
+                });
+
             modelBuilder.Entity("Sis.Api.Features.Students.Student", b =>
                 {
                     b.Property<Guid>("Id")
