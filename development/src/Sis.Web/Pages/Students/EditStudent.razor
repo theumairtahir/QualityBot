@@ -1,0 +1,68 @@
+@page "/students/{Id:guid}/edit"
+@using System.Text.Json
+@using Sis.Contracts.Students
+@inject StudentsClient Students
+@inject IToastService Toasts
+@inject NavigationManager Navigation
+
+<PageTitle>Edit student · SIS</PageTitle>
+
+<PageHeading Title="Edit student" Description="Update the student's details." />
+
+@if (_unreachable)
+{
+    <div class="mt-8">
+        <Alert Color="ThemeColor.Danger" Title="Couldn't load the student">
+            Check that the API is running, then reload the page.
+        </Alert>
+    </div>
+}
+else if (_loading)
+{
+    <span class="text-dark-500 mt-8 block text-sm">Loading student…</span>
+}
+else if (_student is null)
+{
+    <div class="mt-8" data-testid="student-not-found">
+        <EmptyState Title="Student not found">
+            This student may have been removed. <a href="/students" class="text-primary-600 font-semibold">Back to students</a>
+        </EmptyState>
+    </div>
+}
+else
+{
+    <StudentForm Initial="_student" OnSave="@(request => Students.UpdateAsync(Id, request))" OnSaved="Saved" />
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private StudentResponse? _student;
+    private bool _loading = true;
+    private bool _unreachable;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _unreachable = false;
+        try
+        {
+            _student = await Students.GetAsync(Id);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException
+                                       or NotSupportedException or InvalidOperationException)
+        {
+            _unreachable = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Saved(StudentResponse student)
+    {
+        Toasts.ShowSuccess("Student updated", $"{student.FirstName} {student.LastName}'s details were saved.");
+        Navigation.NavigateTo("/students");
+    }
+}

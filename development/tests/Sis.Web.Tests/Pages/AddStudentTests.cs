@@ -24,7 +24,7 @@ public sealed class AddStudentTests : BunitContext
             _requests.Add(request);
             return new HttpResponseMessage(HttpStatusCode.Created)
             {
-                Content = JsonContent.Create(new StudentResponse(Guid.NewGuid(), "Ada", "Lovelace", null, null, "Grade 5")),
+                Content = JsonContent.Create(new StudentResponse(Guid.NewGuid(), 1, "Ada", "Lovelace", null, null, "Grade 5")),
             };
         })));
     }

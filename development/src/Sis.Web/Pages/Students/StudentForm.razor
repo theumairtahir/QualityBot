@@ -1,0 +1,108 @@
+@using System.Text.Json
+@using Sis.Contracts.Students
+@inject TimeProvider Time
+
+<form class="mt-8 max-w-xl space-y-6" novalidate @onsubmit="SubmitAsync" data-testid="student-form">
+    @if (_failure is not null)
+    {
+        <Alert Color="ThemeColor.Danger" Title="Couldn't save the student">@_failure</Alert>
+    }
+
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <TextField TValue="string" Label="First name" Required="true" @bind-Value="_firstName"
+                   Error="@ErrorFor(nameof(CreateStudentRequest.FirstName))" Id="first-name" />
+        <TextField TValue="string" Label="Last name" Required="true" @bind-Value="_lastName"
+                   Error="@ErrorFor(nameof(CreateStudentRequest.LastName))" Id="last-name" />
+    </div>
+
+    <DateInput Label="Date of birth" @bind-Value="_dateOfBirth" Max="@Today"
+               Error="@ErrorFor(nameof(CreateStudentRequest.DateOfBirth))" Id="date-of-birth" />
+
+    <TextField TValue="string" Label="Email" Type="email" @bind-Value="_email" Autocomplete="email"
+               Error="@ErrorFor(nameof(CreateStudentRequest.Email))" Id="email" />
+
+    <Select TValue="string" Label="Class" Required="true" Placeholder="Select a class" @bind-Value="_className"
+            Error="@ErrorFor(nameof(CreateStudentRequest.ClassName))" Id="class-name">
+        @foreach (var name in StudentClasses.Names)
+        {
+            <SelectOption TValue="string" Value="@name" Label="@name" />
+        }
+    </Select>
+
+    <div class="flex items-center justify-end gap-x-3">
+        <Button Href="/students" Variant="ButtonVariant.Secondary" Text="Cancel" />
+        <Button Type="submit" Text="Save student" State="@(_saving ? ButtonState.Processing : ButtonState.None)"
+                data-testid="save-student" />
+    </div>
+</form>
+
+@code {
+    /// <summary>Pre-fills the form (editing). Leave null for a blank form (adding).</summary>
+    [Parameter] public StudentResponse? Initial { get; set; }
+
+    /// <summary>Sends the request to the API. Validation errors come back in the result.</summary>
+    [Parameter, EditorRequired] public Func<CreateStudentRequest, Task<SaveStudentResult>> OnSave { get; set; } = default!;
+
+    /// <summary>Raised after the API accepted the request.</summary>
+    [Parameter] public EventCallback<StudentResponse> OnSaved { get; set; }
+
+    private string? _firstName;
+    private string? _lastName;
+    private DateOnly? _dateOfBirth;
+    private string? _email;
+    private string? _className;
+
+    private bool _saving;
+    private string? _failure;
+    private IReadOnlyDictionary<string, string[]> _errors = new Dictionary<string, string[]>();
+
+    private DateOnly Today => DateOnly.FromDateTime(Time.GetUtcNow().UtcDateTime);
+
+    private string? ErrorFor(string field) => _errors.TryGetValue(field, out var messages) ? messages[0] : null;
+
+    protected override void OnInitialized()
+    {
+        if (Initial is { } student)
+        {
+            _firstName = student.FirstName;
+            _lastName = student.LastName;
+            _dateOfBirth = student.DateOfBirth;
+            _email = student.Email;
+            _className = student.ClassName;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        _failure = null;
+        var request = new CreateStudentRequest(_firstName, _lastName, _dateOfBirth, _email, _className);
+
+        _errors = request.Validate(Today);
+        if (_errors.Count > 0)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var result = await OnSave(request);
+            if (!result.Succeeded)
+            {
+                _errors = result.Errors;
+                return;
+            }
+
+            await OnSaved.InvokeAsync(result.Student);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException
+                                       or NotSupportedException or InvalidOperationException)
+        {
+            _failure = "The API couldn't be reached. Check that it is running and try again.";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

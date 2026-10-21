@@ -1,7 +1,9 @@
 @page "/students"
 @using System.Text.Json
 @using Sis.Contracts.Students
+@implements IDisposable
 @inject StudentsClient Students
+@inject IToastService Toasts
 
 <PageTitle>Students · SIS</PageTitle>
 
@@ -11,7 +13,13 @@
     </Actions>
 </PageHeading>
 
-<div class="mt-8" data-testid="student-list">
+<div class="mt-8 max-w-sm">
+    <TextField TValue="string" Label="Search students" HideLabel="true" Placeholder="Search by name"
+               Type="search" Value="_search" ValueChanged="SearchChangedAsync"
+               OnInput="@(e => SearchChangedAsync(e.Value?.ToString()))" Id="student-search" />
+</div>
+
+<div class="mt-6" data-testid="student-list">
     @if (_unreachable)
     {
         <Alert Color="ThemeColor.Danger" Title="Couldn't load students">
@@ -24,12 +32,22 @@
     }
     else if (_students.Count == 0)
     {
-        <EmptyState Title="No students yet">Add the first student to get started.</EmptyState>
+        @if (string.IsNullOrWhiteSpace(_search))
+        {
+            <EmptyState Title="No students yet">Add the first student to get started.</EmptyState>
+        }
+        else
+        {
+            <EmptyState Title="No students found">No student's name matches "@_search.Trim()".</EmptyState>
+        }
     }
     else
     {
         <Table TItem="StudentResponse" Items="_students" AriaLabel="Students">
             <Columns>
+                <TableColumn TItem="StudentResponse" Header="Roll no.">
+                    <CellTemplate>@context.RollNumber</CellTemplate>
+                </TableColumn>
                 <TableColumn TItem="StudentResponse" Header="Name">
                     <CellTemplate>@FullName(context)</CellTemplate>
                 </TableColumn>
@@ -42,31 +60,132 @@
                 <TableColumn TItem="StudentResponse" Header="Date of birth">
                     <CellTemplate>@Born(context)</CellTemplate>
                 </TableColumn>
+                <TableColumn TItem="StudentResponse" Header="Actions" HideHeader="true">
+                    <CellTemplate>
+                        <div class="flex justify-end gap-x-2">
+                            <Button Href="@($"/students/{context.Id}/edit")" Size="Size.Small" Variant="ButtonVariant.Secondary"
+                                    Text="Edit" data-testid="edit-student" />
+                            <Button Size="Size.Small" Variant="ButtonVariant.Secondary" Color="ThemeColor.Danger"
+                                    Text="Remove" OnClick="@(async () => await AskToRemoveAsync(context))" data-testid="remove-student" />
+                        </div>
+                    </CellTemplate>
+                </TableColumn>
             </Columns>
         </Table>
     }
 </div>
 
+<Modal @ref="_confirm" Id="remove-student-dialog" Title="Remove student?" Size="ModalSize.Sm">
+    <ChildContent>
+        <p class="text-dark-500 text-sm" data-testid="remove-confirmation">
+            @(_pendingRemoval is null ? "" : $"{FullName(_pendingRemoval)} (roll no. {_pendingRemoval.RollNumber}) will be removed permanently. This can't be undone.")
+        </p>
+    </ChildContent>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" Text="Cancel" OnClick="CancelRemovalAsync" data-testid="cancel-remove" />
+        <Button Color="ThemeColor.Danger" Text="Remove" State="@(_removing ? ButtonState.Processing : ButtonState.None)"
+                OnClick="RemoveAsync" data-testid="confirm-remove" />
+    </Footer>
+</Modal>
+
 @code {
     private const string Dash = "—";
+    private static readonly TimeSpan SearchDelay = TimeSpan.FromMilliseconds(250);
 
     private IReadOnlyList<StudentResponse>? _students;
     private bool _unreachable;
+    private string? _search;
+    private CancellationTokenSource? _searchDebounce;
+
+    private Modal? _confirm;
+    private StudentResponse? _pendingRemoval;
+    private bool _removing;
 
     private static string FullName(StudentResponse s) => $"{s.FirstName} {s.LastName}";
 
     private static string Born(StudentResponse s) => s.DateOfBirth?.ToString("d MMM yyyy") ?? Dash;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task SearchChangedAsync(string? value)
+    {
+        _search = value;
+
+        // Wait for a pause in typing so each keystroke doesn't hit the API.
+        _searchDebounce?.Cancel();
+        _searchDebounce?.Dispose();
+        var debounce = _searchDebounce = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(SearchDelay, debounce.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
     {
         try
         {
-            _students = await Students.ListAsync();
+            _students = await Students.ListAsync(_search);
+            _unreachable = false;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException
-                                       or NotSupportedException or InvalidOperationException)
+        catch (Exception ex) when (IsApiFailure(ex))
         {
             _unreachable = true;
         }
+    }
+
+    private async Task AskToRemoveAsync(StudentResponse student)
+    {
+        _pendingRemoval = student;
+        await _confirm!.OpenAsync();
+    }
+
+    private async Task CancelRemovalAsync()
+    {
+        await _confirm!.CloseAsync();
+        _pendingRemoval = null;
+    }
+
+    private async Task RemoveAsync()
+    {
+        if (_pendingRemoval is not { } student)
+        {
+            return;
+        }
+
+        _removing = true;
+        try
+        {
+            await Students.DeleteAsync(student.Id);
+            await _confirm!.CloseAsync();
+            Toasts.ShowSuccess("Student removed", $"{FullName(student)} was removed.");
+            _pendingRemoval = null;
+            await LoadAsync();
+        }
+        catch (Exception ex) when (IsApiFailure(ex))
+        {
+            await _confirm!.CloseAsync();
+            Toasts.ShowDanger("Couldn't remove the student", "The API couldn't be reached. Try again in a moment.");
+        }
+        finally
+        {
+            _removing = false;
+        }
+    }
+
+    private static bool IsApiFailure(Exception ex) =>
+        ex is HttpRequestException or TaskCanceledException or JsonException or NotSupportedException or InvalidOperationException;
+
+    public void Dispose()
+    {
+        _searchDebounce?.Cancel();
+        _searchDebounce?.Dispose();
     }
 }
