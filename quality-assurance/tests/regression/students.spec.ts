@@ -35,12 +35,34 @@ test.describe('students: add', { tag: '@critical' }, () => {
   });
 
   test('API rejects an email longer than 254 characters with 400, not 500', async ({ request }) => {
-    // Open bug (PR #15, email-too-long-500): expected to fail until fixed; remove this line then.
-    test.fail(true, 'known bug: API returns 500');
     const apiUrl = process.env.QA_API_URL ?? 'http://localhost:8081';
     const res = await request.post(`${apiUrl}/api/students`, {
       data: { firstName: 'Long', lastName: unique(), className: 'Grade 1', email: `${'a'.repeat(250)}@example.com` },
     });
     expect(res.status()).toBe(400);
   });
+
+  test('API trims surrounding spaces from names without a validation error', async ({ request }) => {
+    const apiUrl = process.env.QA_API_URL ?? 'http://localhost:8081';
+    const last = unique();
+    const res = await request.post(`${apiUrl}/api/students`, {
+      data: { firstName: '  Trim  ', lastName: `  ${last}  `, className: 'Grade 1' },
+    });
+    expect(res.status()).toBe(201);
+    const body = await res.json();
+    expect(body.firstName).toBe('Trim');
+    expect(body.lastName).toBe(last);
+  });
+
+  for (const bad of ['John3', 'Ann@!#']) {
+    test(`API rejects name "${bad}" with digits or special characters`, async ({ request }) => {
+      // Open bug (PR #15, name-allows-digits-special-chars): remove test.fail once fixed.
+      test.fail(true, 'known bug: API accepts digits/special characters in names');
+      const apiUrl = process.env.QA_API_URL ?? 'http://localhost:8081';
+      const res = await request.post(`${apiUrl}/api/students`, {
+        data: { firstName: bad, lastName: 'Valid', className: 'Grade 1' },
+      });
+      expect(res.status()).toBe(400);
+    });
+  }
 });
