@@ -20,6 +20,17 @@ Environment facts and lessons that save time in the next cycle.
 
 ## Lessons
 
+- 2026-10-21 (PR #17): the sidebar exists twice in the DOM (mobile + desktop); `querySelector` hits the
+  hidden copy first. Use `:visible` (`[data-testid="school-name"]:visible`).
+- 2026-10-21 (PR #17): the "Settings saved" toast auto-dismisses in about 3 s; assert it right after the click
+  (`browser_wait_for` / web-first `expect`), not after other checks.
+- 2026-10-21 (PR #17): Blazor WASM needs a moment after `goto`; parallel MCP calls issued with the
+  navigation fail with "does not match any elements". Snapshot or wait for the form first.
+- 2026-10-21 (PR #17): `getByLabel` would resolve to the wrapper div with the duplicate id; to test
+  label association use `getByRole('textbox', { name })`.
+- 2026-10-21 (PR #17): `school_profile` is global state shared by all tests. Keep its tests in one file in
+  `mode: 'default'`, and reset with `./scripts/db.sh query "delete from school_profile"` for the default state.
+
 - 2026-10-21 (PR #15): generated names must be **letters only** (`Date.now()` digits are rejected by
   the name rule). `students.spec.ts` has a base-26 `unique()` helper.
 - 2026-10-21 (PR #15): toast text appears twice (visible paragraph + live region) → `getByText`

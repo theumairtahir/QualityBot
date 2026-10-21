@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject NavigationManager Navigation
+@inject SchoolProfileState School
 
 <SidebarLayout SidebarWidth="w-72" MobileTitle="@PageTitle" OffWhitePageBackground="true">
     <Sidebar>
@@ -8,8 +10,8 @@
                 <Icon Name="academic-cap" Size="size-5" />
             </div>
             <div class="flex flex-col">
-                <span class="text-dark-900 text-sm font-semibold dark:text-white">Student Information System</span>
-                <span class="text-dark-500 text-xs">Demo campus</span>
+                <span data-testid="school-name" class="text-dark-900 text-sm font-semibold dark:text-white">@School.Profile.Name</span>
+                <span data-testid="school-subtitle" class="text-dark-500 text-xs">@Subtitle</span>
             </div>
         </div>
 
@@ -61,4 +63,18 @@
 
     // A new page arrives as a new Body: clear any error the previous page left behind.
     protected override void OnParametersSet() => _errorBoundary?.Recover();
+
+    private string Subtitle => School.Profile.AcademicYear is { Length: > 0 } year
+        ? $"Student Information System · {year}"
+        : "Student Information System";
+
+    protected override async Task OnInitializedAsync()
+    {
+        School.Changed += OnSchoolChanged;
+        await School.EnsureLoadedAsync();
+    }
+
+    private void OnSchoolChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => School.Changed -= OnSchoolChanged;
 }
